@@ -1,0 +1,2279 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>نظام سُكّر - المساعد الطبي المتكامل</title>
+    
+    <!-- iOS Failsafe Script -->
+    <script>
+        // نظام إنقاذ صارم ومحدث
+        window.appForceLoaded = false;
+        window.onload = function() {
+            setTimeout(function() {
+                if(!window.appForceLoaded) {
+                    var loader = document.getElementById('global-loader');
+                    var authModal = document.getElementById('auth-modal');
+                    if(loader) {
+                        loader.style.display = 'none';
+                        loader.classList.add('hidden');
+                    }
+                    if(authModal) {
+                        authModal.style.display = 'flex';
+                        authModal.classList.remove('hidden');
+                        authModal.classList.add('flex');
+                    }
+                }
+            }, 4000);
+        };
+    </script>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1e40af',
+                        secondary: '#059669',
+                        danger: '#e11d48',
+                        warning: '#ea580c',
+                        dark: '#0f172a',
+                        light: '#f8fafc',
+                        muted: '#64748b',
+                        accent: '#8b5cf6'
+                    },
+                    fontFamily: {
+                        sans: ['Tajawal', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'premium': '0 10px 30px -5px rgba(0, 0, 0, 0.05), 0 4px 10px -5px rgba(0, 0, 0, 0.03)',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Assets -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Robust PDF Export Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        body { font-family: 'Tajawal', sans-serif; background-color: #f8fafc; color: #1e293b; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
+        
+        .glass-effect { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
+        .nav-btn.active { color: #1e40af; transform: translateY(-2px); }
+        .nav-btn.active i { background: #eff6ff; border-radius: 12px; padding: 8px; }
+        .tab-btn.active { color: #1e40af; border-bottom: 3px solid #1e40af; font-weight: 800; }
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        #toast-container { position: fixed; top: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 1000000; width: 90%; max-width: 420px; pointer-events: none; }
+        .toast { padding: 1.25rem; border-radius: 1rem; color: white; display: flex; align-items: center; gap: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; pointer-events: auto; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .timeline-line::before { content: ''; position: absolute; right: 24px; top: 0; height: 100%; width: 2px; background: #e2e8f0; z-index: 0; }
+        
+        /* Export Loader Overlay */
+        #export-loader { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px); z-index: 9999999; flex-direction: column; justify-content: center; align-items: center; color: white; }
+        
+        /* PDF Rendering Containers (Strictly hidden until needed to prevent click blocking) */
+        #pdf-render-wrapper { display: none; background: white; direction: rtl; }
+        
+        .pdf-page-container { background: white; color: #000; box-sizing: border-box; }
+        .pdf-summary-page { width: 210mm; padding: 15mm; }
+        .pdf-table-page { width: 297mm; padding: 15mm; }
+        
+        .pdf-table { width: 100%; border-collapse: collapse; margin-top: 5mm; }
+        .pdf-table th { background: #f1f5f9; padding: 12px; border: 1px solid #cbd5e1; font-size: 14px; font-weight: bold; color: #1e293b; text-align: center; }
+        .pdf-table td { padding: 10px; border: 1px solid #e2e8f0; font-size: 12px; text-align: center; vertical-align: top; }
+        
+        .pulse-red { animation: pulse-red 2s infinite; }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(225, 29, 72, 0); } 100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); } }
+        
+        /* PDF Printing Display Fix */
+        body.is-printing #app-header, 
+        body.is-printing #app-content, 
+        body.is-printing #app-nav,
+        body.is-printing #toast-container { display: none !important; }
+        body.is-printing { background-color: white !important; overflow: visible !important; }
+        body.is-printing #pdf-render-wrapper { display: block !important; position: absolute !important; left: -9999px !important; top: -9999px !important; }
+    </style>
+</head>
+<body class="pb-28">
+
+    <div id="toast-container"></div>
+
+    <!-- Global Loader -->
+    <div id="global-loader" class="fixed inset-0 bg-slate-900/90 backdrop-blur-xl flex flex-col justify-center items-center text-white transition-opacity duration-500 z-[100000]">
+        <div class="relative w-24 h-24 mb-6">
+            <div class="absolute inset-0 border-4 border-slate-700 rounded-full"></div>
+            <div class="absolute inset-0 border-4 border-t-blue-600 border-r-blue-600 rounded-full animate-spin"></div>
+            <div class="absolute inset-0 flex items-center justify-center">
+                <i class="fa-solid fa-droplet text-3xl text-blue-500 animate-pulse"></i>
+            </div>
+        </div>
+        <h2 class="text-2xl font-black tracking-widest mb-2" style="color: white;">سُكّـر CLOUD</h2>
+        <p class="text-slate-400 text-sm font-medium animate-pulse" id="loader-status">جاري تأمين الاتصال وجلب البيانات...</p>
+    </div>
+
+    <!-- Export PDF Loader -->
+    <div id="export-loader">
+        <i class="fa-solid fa-print text-5xl text-emerald-400 mb-4 animate-bounce"></i>
+        <h2 class="text-xl font-black mb-2">جاري بناء التقرير...</h2>
+        <p class="text-sm text-slate-400">يرجى الانتظار، سيتم تحميل التقرير تلقائياً.</p>
+    </div>
+
+    <!-- Auth Modal -->
+    <div id="auth-modal" style="background-color: rgba(15,23,42,0.95);" class="fixed inset-0 backdrop-blur-md hidden flex-col justify-center items-center p-6 z-[9999]">
+        <div class="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl space-y-6 relative overflow-hidden animate-[slideDown_0.4s_ease-out]">
+            <div class="text-center">
+                <div class="w-20 h-20 bg-blue-50 text-primary rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-sm" id="auth-icon-box">
+                    <i class="fa-solid fa-user-shield text-4xl" id="auth-icon"></i>
+                </div>
+                <h3 class="text-2xl font-black text-slate-800" id="auth-title">تسجيل الدخول</h3>
+                <p class="text-slate-500 text-sm mt-1 leading-relaxed" id="auth-subtitle">أهلاً بك، يرجى تسجيل الدخول للوصول للملف الطبي</p>
+            </div>
+            
+            <div class="space-y-4">
+                <input type="text" id="auth-userid" class="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 ring-primary/20 transition-all text-center" placeholder="رقم المستخدم أو الإيميل" dir="ltr">
+                <input type="password" id="auth-pass" class="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 ring-primary/20 transition-all text-center" placeholder="كلمة المرور">
+            </div>
+
+            <button id="btn-login-main" onclick="window.handleAuth('login')" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-black py-4 rounded-2xl shadow-xl active:scale-[0.98] transition-all text-lg">دخول النظام</button>
+            <button id="btn-register-main" onclick="window.handleAuth('register')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-2xl shadow-xl active:scale-[0.98] transition-all text-lg hidden">إنشاء حساب جديد</button>
+            
+            <div class="text-center pt-4 border-t border-slate-100">
+                <span class="text-xs text-slate-400 cursor-pointer hover:text-primary font-bold transition-colors" onclick="window.toggleAuthMode()" id="auth-toggle-text">مستخدم جديد؟ اضغط لإنشاء حساب</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- First Time Setup Modal -->
+    <div id="setup-modal" style="background-color: rgba(15,23,42,0.95);" class="fixed inset-0 backdrop-blur-md hidden flex-col justify-center items-center p-6 z-[9999]">
+        <div class="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl space-y-6 relative overflow-hidden animate-[slideDown_0.4s_ease-out]">
+            <div class="text-center">
+                <div class="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                    <i class="fa-solid fa-hand-wave text-4xl"></i>
+                </div>
+                <h3 class="text-2xl font-black text-slate-800">أهلاً بك في سُكّر</h3>
+                <p class="text-slate-500 text-sm mt-1">بما أنك مستخدم جديد، ما هو اسم البطل للبدء؟</p>
+            </div>
+            
+            <div class="space-y-4">
+                <input type="text" id="setup-name" class="w-full bg-slate-50 border-none p-4 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 ring-primary/20 transition-all text-center" placeholder="أدخل اسمك هنا...">
+            </div>
+
+            <button onclick="window.saveInitialProfile()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-2xl shadow-xl active:scale-[0.98] transition-all text-lg">بناء الملف والانطلاق</button>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header id="app-header" class="glass-effect sticky top-0 z-40 shadow-sm border-b border-slate-200/50">
+        <div class="max-w-4xl mx-auto px-5 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg">
+                    <i class="fa-solid fa-droplet text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-black text-slate-800 leading-none">سُكّـر</h1>
+                    <span class="text-[10px] font-bold text-slate-400 tracking-widest uppercase">Smart Assistant</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <div id="sync-status" class="bg-amber-50 text-amber-600 px-3 py-1.5 rounded-full text-[10px] font-black">
+                    جاري الاتصال...
+                </div>
+                <button onclick="window.forceSync()" class="w-9 h-9 flex items-center justify-center bg-blue-50 text-primary rounded-xl hover:bg-blue-100 transition-colors" title="تحديث البيانات">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main App Content -->
+    <main id="app-content" class="max-w-4xl mx-auto p-5 space-y-6">
+        
+        <!-- DASHBOARD VIEW -->
+        <section id="view-dashboard" class="space-y-6">
+            <div class="flex justify-between items-end">
+                <div>
+                    <h2 class="text-2xl font-black text-slate-800" id="welcome-name">مرحباً يا بطل</h2>
+                    <p class="text-slate-400 text-sm font-medium" id="dashboard-date-str"></p>
+                </div>
+                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-primary to-blue-400 flex items-center justify-center text-white shadow-lg">
+                    <i class="fa-solid fa-user-astronaut text-xl"></i>
+                </div>
+            </div>
+
+            <!-- Current Status Card -->
+            <div class="relative overflow-hidden bg-white rounded-[2.5rem] shadow-premium p-8 text-center border border-slate-100">
+                <div class="relative z-10">
+                    <div class="flex items-center justify-center gap-2 mb-2">
+                        <span class="text-slate-400 text-xs font-bold uppercase">آخر قراءة سكر</span>
+                        <div id="bg-time-badge" class="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 rounded font-black">--:--</div>
+                    </div>
+                    
+                    <div class="flex items-center justify-center gap-4 py-2">
+                        <span id="latest-bg-value" class="text-7xl font-black text-slate-800">--</span>
+                        <div class="text-right">
+                            <div class="text-xs font-black text-slate-400">mg/dL</div>
+                        </div>
+                        <div id="latest-bg-trend-icon" class="text-4xl text-slate-200">
+                            <i class="fa-solid fa-minus"></i>
+                        </div>
+                    </div>
+
+                    <div id="latest-bg-status-msg" class="inline-flex items-center gap-2 px-6 py-2 rounded-full text-sm font-black bg-slate-50 text-slate-400 mt-4">
+                        بانتظار قراءة جديدة
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Stats -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-white p-5 rounded-[2rem] shadow-premium border border-slate-100 text-center">
+                    <span class="text-[10px] font-black text-slate-400 uppercase">أنسولين نشط (IOB)</span>
+                    <div class="mt-1 font-black text-2xl text-slate-800" id="dash-iob">0.0 <span class="text-xs font-normal text-slate-400">u</span></div>
+                </div>
+                <div class="bg-white p-5 rounded-[2rem] shadow-premium border border-slate-100 text-center">
+                    <span class="text-[10px] font-black text-slate-400 uppercase">كربوهيدرات اليوم</span>
+                    <div class="mt-1 font-black text-2xl text-slate-800" id="dash-carbs">0 <span class="text-xs font-normal text-slate-400">g</span></div>
+                </div>
+            </div>
+
+            <!-- Quick Access -->
+            <button onclick="window.openLogger(1)" class="w-full bg-dark text-white p-5 rounded-[2rem] shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all text-xl font-black">
+                <i class="fa-solid fa-notes-medical text-primary text-2xl"></i> تسجيل قراءة شاملة
+            </button>
+        </section>
+
+        <!-- TIMELINE VIEW -->
+        <section id="view-timeline" class="hidden space-y-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-black text-slate-800">السجل اليومي</h2>
+                <button onclick="window.forceSync()" class="bg-blue-50 text-primary px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 hover:bg-blue-100 transition-colors shadow-sm active:scale-95">
+                    <i class="fa-solid fa-cloud-arrow-down"></i> تحديث السجلات
+                </button>
+            </div>
+            
+            <div id="timeline-container" class="space-y-6 pb-10">
+                <!-- Timeline items injected here -->
+            </div>
+        </section>
+
+        <!-- REPORTS VIEW -->
+        <section id="view-reports" class="hidden space-y-6">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-2">
+                <h2 class="text-2xl font-black text-slate-800 ml-auto">التقارير الطبية</h2>
+                
+                <!-- Explicit Update Button for Dates -->
+                <div class="flex flex-wrap gap-2 items-center bg-white p-2 rounded-2xl border border-slate-200 shadow-sm w-full md:w-auto justify-between md:justify-start">
+                    <div class="flex items-center gap-1">
+                        <span class="text-[9px] font-black text-slate-400">من</span>
+                        <input type="date" id="filter-start" class="bg-slate-50 border-none outline-none rounded-xl text-[10px] font-bold p-1 text-slate-700">
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <span class="text-[9px] font-black text-slate-400">إلى</span>
+                        <input type="date" id="filter-end" class="bg-slate-50 border-none outline-none rounded-xl text-[10px] font-bold p-1 text-slate-700">
+                    </div>
+                    <button onclick="window.renderReports()" class="bg-primary text-white px-3 py-1.5 rounded-xl text-[10px] font-black hover:bg-blue-700 transition-colors shadow-md active:scale-95">تحديث البيانات</button>
+                    <button onclick="document.getElementById('filter-start').value=''; document.getElementById('filter-end').value=''; window.renderReports();" class="text-red-400 hover:text-red-600 px-2" title="مسح الفلتر"><i class="fa-solid fa-rotate-left text-xs"></i></button>
+                </div>
+            </div>
+
+            <!-- New Full Metrics Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div class="bg-blue-50 p-4 rounded-[1.5rem] text-center border border-blue-100 flex flex-col justify-center">
+                    <span class="text-[10px] font-bold text-blue-600">متوسط السكر</span>
+                    <div class="text-2xl font-black text-primary mt-1" id="rep-avg">--</div>
+                </div>
+                <div class="bg-emerald-50 p-4 rounded-[1.5rem] text-center border border-emerald-100 flex flex-col justify-center">
+                    <span class="text-[10px] font-bold text-emerald-600">ضمن الطبيعي (<span id="ui-target-lbl">90-180</span>)</span>
+                    <div class="text-2xl font-black text-emerald-700 mt-1" id="rep-target">--</div>
+                </div>
+                <div class="bg-red-50 p-4 rounded-[1.5rem] text-center border border-red-100 flex flex-col justify-center">
+                    <span class="text-[10px] font-bold text-red-600">هبوط (<span id="ui-low-lbl">70</span>)</span>
+                    <div class="text-2xl font-black text-red-600 mt-1" id="rep-low">--</div>
+                </div>
+                <div class="bg-orange-50 p-4 rounded-[1.5rem] text-center border border-orange-100 flex flex-col justify-center">
+                    <span class="text-[10px] font-bold text-orange-600">مرتفع (><span id="ui-high-lbl">180</span>)</span>
+                    <div class="text-2xl font-black text-orange-600 mt-1" id="rep-high">--</div>
+                </div>
+            </div>
+
+            <!-- HbA1c Status Grid -->
+            <div class="grid grid-cols-3 gap-3">
+                <div class="bg-purple-50 p-4 rounded-[1.5rem] text-center border border-purple-100">
+                    <span class="text-[10px] font-bold text-purple-600 block">التراكمي المتوقع للفترة</span>
+                    <div class="text-xl font-black text-purple-800 mt-1" id="rep-a1c">--%</div>
+                    <div class="text-[8px] text-purple-400 mt-1" id="rep-a1c-note">مبني على القراءات المفلترة</div>
+                </div>
+                <div class="bg-white p-4 rounded-[1.5rem] text-center border border-slate-200 shadow-sm flex flex-col justify-center">
+                    <span class="text-[10px] font-bold text-slate-500 block">آخر فحص سريري</span>
+                    <div class="text-xl font-black text-slate-800 mt-1" id="rep-latest-lab">--%</div>
+                </div>
+                <div class="bg-white p-4 rounded-[1.5rem] text-center border border-slate-200 shadow-sm flex flex-col justify-center">
+                    <span class="text-[10px] font-bold text-slate-500 block">معدل التقدم</span>
+                    <div class="text-sm font-black mt-1" id="rep-progress">--</div>
+                </div>
+            </div>
+
+            <!-- Chart -->
+            <div class="bg-white p-6 rounded-[2.5rem] shadow-premium border border-slate-100 relative">
+                <div class="absolute top-4 left-6 flex gap-2 z-10">
+                    <button onclick="window.exportExcel()" class="bg-emerald-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-black shadow-lg flex items-center gap-1.5 hover:bg-emerald-700 active:scale-95 transition-all">
+                        <i class="fa-solid fa-file-excel"></i> إكسل
+                    </button>
+                    <button onclick="window.exportReport()" class="bg-dark text-white px-3 py-1.5 rounded-xl text-[10px] font-black shadow-lg flex items-center gap-1.5 active:scale-95 transition-all">
+                        <i class="fa-solid fa-print text-primary"></i> PDF
+                    </button>
+                </div>
+                <h3 class="text-xs font-bold text-slate-400 mb-4 border-b border-slate-50 pb-2">الرسم البياني لتسلسل السكر الزمني</h3>
+                <!-- Fix for infinite expansion: Added fixed height relative container -->
+                <div class="relative h-64 w-full">
+                    <canvas id="main-bg-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Mathematical Clinical Recommendations -->
+            <div class="bg-white p-6 rounded-[2.5rem] shadow-premium border border-slate-100 space-y-4">
+                <h3 class="text-sm font-black text-slate-700 border-b border-slate-100 pb-2 flex justify-between items-center">
+                    <span><i class="fa-solid fa-stethoscope text-amber-500 mr-1"></i> التحليل السريري للفترات والجرعات</span>
+                    <span class="text-[9px] bg-slate-100 text-slate-600 px-2 py-1 rounded-full"><i class="fa-solid fa-calculator"></i> خوارزمية طبية</span>
+                </h3>
+                <p class="text-[10px] text-slate-500 font-bold leading-relaxed">تصنيف منهجي لنمط القراءات والجرعات للفترات المفلترة (صباح، ظهر، مساء، ليل) لتسهيل متابعة وضع الطفل بدقة.</p>
+                <div id="ai-recommendations-list" class="space-y-3 mt-4">
+                    <!-- Recommendations injected here -->
+                </div>
+            </div>
+
+            <!-- Lab HbA1c Results -->
+            <div class="bg-white p-6 rounded-[2.5rem] shadow-premium border border-slate-100 space-y-4">
+                <h3 class="text-sm font-black text-slate-700 border-b border-slate-100 pb-2"><i class="fa-solid fa-flask-vial text-indigo-500 mr-1"></i> نتائج التراكمي السريري</h3>
+                <p class="text-[10px] text-slate-500 font-bold leading-relaxed">أدخل نتيجة الفحص السريري للتراكمي ليضبط النظام حساباته التقديرية بدقة أعلى.</p>
+                <div class="flex gap-2">
+                    <input type="number" id="lab-val" step="0.1" placeholder="النتيجة %" class="flex-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-bold text-center outline-none focus:border-indigo-300">
+                    <input type="date" id="lab-date" class="flex-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-bold text-xs outline-none text-center focus:border-indigo-300">
+                    <button onclick="window.addLabResult()" class="bg-indigo-600 text-white px-4 rounded-xl font-black text-xs hover:bg-indigo-700 transition-colors shadow-md">حفظ</button>
+                </div>
+                <div id="lab-results-list" class="space-y-2 mt-4 pt-4 border-t border-slate-50">
+                    <!-- Lab items injected here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- SETTINGS VIEW -->
+        <section id="view-settings" class="hidden space-y-6">
+            <h2 class="text-2xl font-black text-slate-800">ملفي الشخصي والطبي</h2>
+            
+            <div class="bg-white p-6 rounded-[2rem] shadow-premium space-y-4 border border-slate-100">
+                <h3 class="font-black text-sm text-primary mb-2 border-b border-slate-50 pb-2"><i class="fa-solid fa-id-card"></i> البيانات الأساسية</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 mb-1 uppercase">اسم المريض</label>
+                        <input type="text" id="set-name" class="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-bold outline-none focus:border-primary">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 mb-1 uppercase">تاريخ الميلاد</label>
+                            <input type="date" id="set-dob" class="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-bold text-xs outline-none text-center focus:border-primary">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 mb-1 uppercase">الوزن (كجم)</label>
+                            <input type="number" id="set-weight" class="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-bold text-center outline-none focus:border-primary">
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="font-black text-sm text-secondary mt-6 mb-2 border-b border-slate-50 pb-2 pt-4"><i class="fa-solid fa-calculator"></i> المعايير الطبية (يحددها الطبيب)</h3>
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-blue-50/50 p-4 rounded-2xl border border-blue-100">
+                            <label class="block text-[10px] font-black text-blue-800 mb-2">معامل التصحيح (ISF)</label>
+                            <input type="number" id="set-isf" class="w-full bg-white border border-blue-200 p-2 rounded-lg text-center font-black text-primary outline-none focus:border-blue-400" title="كم ينزل السكر مقابل وحدة أنسولين واحدة">
+                        </div>
+                        <div class="bg-amber-50/50 p-4 rounded-2xl border border-amber-100">
+                            <label class="block text-[10px] font-black text-amber-800 mb-2">معامل الكرب (ICR)</label>
+                            <input type="number" id="set-icr" class="w-full bg-white border border-amber-200 p-2 rounded-lg text-center font-black text-amber-600 outline-none focus:border-amber-400" title="كم جرام كربوهيدرات تغطيه وحدة أنسولين واحدة">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 mb-1 uppercase">الهدف الأدنى (Min BG)</label>
+                            <input type="number" id="set-target-min" class="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-center font-bold outline-none focus:border-primary">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 mb-1 uppercase">الهدف الأعلى (Max BG)</label>
+                            <input type="number" id="set-target-max" class="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-center font-bold outline-none focus:border-primary">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 mb-1 uppercase">بقاء الأنسولين (ساعات)</label>
+                        <input type="number" id="set-duration" class="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-center font-bold outline-none focus:border-primary">
+                    </div>
+                </div>
+
+                <button onclick="window.updateSettings()" class="w-full bg-dark text-white py-4 rounded-2xl font-black shadow-xl active:scale-95 transition-all mt-4">حفظ إعدادات الملف</button>
+            </div>
+
+            <!-- Custom Family Foods -->
+            <div class="bg-white p-6 rounded-[2rem] shadow-premium space-y-4 border border-slate-100">
+                <div class="flex justify-between items-center border-b border-slate-50 pb-2">
+                    <h3 class="font-black text-sm text-warning"><i class="fa-solid fa-utensils"></i> أطعمة الأسرة المخصصة</h3>
+                </div>
+                <p class="text-[10px] text-slate-500 font-bold leading-relaxed">أضف الأطعمة الشائعة في منزلك يدوياً مع تحديد نسبة الكربوهيدرات لكل 100 جرام.</p>
+                
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                    <input type="text" id="cust-food-name" placeholder="اسم الطعام (مثال: كبسة دجاج)" class="w-full bg-white border border-slate-200 p-3 rounded-xl text-xs font-bold outline-none focus:border-warning">
+                    <div class="flex gap-2">
+                        <input type="number" id="cust-food-carbs" placeholder="الكارب في كل 100 جرام" class="flex-1 bg-white border border-slate-200 p-3 rounded-xl text-xs font-bold outline-none text-center focus:border-warning">
+                        <button onclick="window.addCustomFood()" class="bg-warning text-white px-5 rounded-xl font-black text-xs hover:bg-orange-600 transition-colors shadow-md">إضافة</button>
+                    </div>
+                </div>
+
+                <div id="custom-food-list" class="space-y-2 mt-4 pt-2 border-t border-slate-50 max-h-40 overflow-y-auto hide-scroll">
+                    <!-- Custom foods injected here -->
+                </div>
+            </div>
+
+            <button onclick="window.logoutAndReset()" class="w-full bg-red-50 text-red-600 py-3 rounded-2xl font-black active:scale-95 transition-all border border-red-200 shadow-sm"><i class="fa-solid fa-power-off mr-1"></i> تسجيل الخروج من الحساب</button>
+        </section>
+    </main>
+
+    <!-- Nav Bar -->
+    <nav id="app-nav" class="fixed bottom-0 w-full bg-white/90 backdrop-blur-xl border-t border-slate-200/50 flex justify-around p-3 pb-8 z-30">
+        <button onclick="window.switchView('dashboard')" class="nav-btn active flex flex-col items-center gap-1 w-1/4" data-target="dashboard">
+            <i class="fa-solid fa-house-chimney text-xl"></i>
+            <span class="text-[9px] font-black uppercase">الرئيسية</span>
+        </button>
+        <button onclick="window.switchView('timeline')" class="nav-btn flex flex-col items-center gap-1 text-slate-400 w-1/4" data-target="timeline">
+            <i class="fa-solid fa-clock-rotate-left text-xl"></i>
+            <span class="text-[9px] font-black uppercase">السجل</span>
+        </button>
+        <button onclick="window.switchView('reports')" class="nav-btn flex flex-col items-center gap-1 text-slate-400 w-1/4" data-target="reports">
+            <i class="fa-solid fa-chart-line text-xl"></i>
+            <span class="text-[9px] font-black uppercase">تقارير</span>
+        </button>
+        <button onclick="window.switchView('settings')" class="nav-btn flex flex-col items-center gap-1 text-slate-400 w-1/4" data-target="settings">
+            <i class="fa-solid fa-gear text-xl"></i>
+            <span class="text-[9px] font-black uppercase">ملفي</span>
+        </button>
+    </nav>
+
+    <!-- Multi-Step Logger Modal (Wizard) -->
+    <div id="log-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex-col justify-end items-center" style="z-index: 50;">
+        <div class="bg-white w-full max-w-lg rounded-t-[3rem] p-6 shadow-2xl space-y-4 transform translate-y-full transition-transform duration-300" id="log-modal-sheet">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="font-black text-xl text-slate-800" id="modal-title">تسجيل جديد</h3>
+                <button onclick="window.closeLogger()" class="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <!-- Context & Date/Time Override -->
+            <div class="bg-blue-50/30 p-3 rounded-2xl border border-blue-100/50 space-y-3">
+                <div class="flex items-center gap-2">
+                    <i class="fa-regular fa-calendar-days text-primary opacity-60"></i>
+                    <input type="date" id="log-date" class="flex-1 bg-transparent border-none text-xs font-bold text-slate-700 outline-none text-right">
+                    <div class="w-px h-4 bg-slate-200"></div>
+                    <i class="fa-regular fa-clock text-primary opacity-60 ml-1"></i>
+                    <input type="time" id="log-time" class="flex-1 bg-transparent border-none text-xs font-bold text-slate-700 outline-none text-left" dir="ltr">
+                </div>
+            </div>
+
+            <!-- Step Indicators -->
+            <div class="relative flex justify-between items-center px-6 mb-2 mt-2">
+                <div class="absolute left-8 right-8 top-1/2 h-1 bg-slate-100 -z-10 -translate-y-1/2"></div>
+                <div id="step-1-ind" class="w-10 h-10 rounded-full flex items-center justify-center font-black text-white bg-primary shadow-lg shadow-blue-500/30 transition-all cursor-pointer" onclick="window.goToStep(1)"><i class="fa-solid fa-droplet"></i></div>
+                <div id="step-2-ind" class="w-10 h-10 rounded-full flex items-center justify-center font-black text-slate-400 bg-slate-200 transition-all cursor-pointer" onclick="window.goToStep(2)"><i class="fa-solid fa-utensils"></i></div>
+                <div id="step-3-ind" class="w-10 h-10 rounded-full flex items-center justify-center font-black text-slate-400 bg-slate-200 transition-all cursor-pointer" onclick="window.goToStep(3)"><i class="fa-solid fa-syringe"></i></div>
+            </div>
+
+            <!-- Modal Contents -->
+            <div id="form-content" class="space-y-4 max-h-[55vh] overflow-y-auto hide-scroll pt-2 pb-4 px-1">
+                
+                <!-- STEP 1: BG Section -->
+                <div id="form-bg" class="space-y-5 animate-[slideDown_0.2s_ease-out]">
+                    <div class="text-center">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">قراءة السكر الحالية (mg/dL)</label>
+                        <input type="number" id="inp-bg-val" class="w-full border border-slate-100 p-4 rounded-3xl text-center text-7xl font-black bg-blue-50/30 text-primary outline-none focus:bg-blue-100/50 focus:border-blue-300 transition-colors shadow-inner" placeholder="000" oninput="window.runLiveCalc()">
+                    </div>
+
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block text-center">حالة القراءة (تساعد النظام في التحليل)</label>
+                        <select id="log-context" class="w-full bg-white border border-slate-200 p-3 rounded-xl font-bold text-sm outline-none text-slate-600 shadow-sm text-center appearance-none" onchange="window.handleContextChange()">
+                            <option value="عشوائي">قراءة عشوائية</option>
+                            <option value="استيقاظ">استيقاظ / صيام</option>
+                            <option value="قبل الفطور">قبل الفطور</option>
+                            <option value="بعد الفطور">بعد الفطور</option>
+                            <option value="قبل الغداء">قبل الغداء</option>
+                            <option value="بعد الغداء">بعد الغداء</option>
+                            <option value="قبل العشاء">قبل العشاء</option>
+                            <option value="بعد العشاء">بعد العشاء</option>
+                            <option value="قبل سناك">قبل سناك</option>
+                            <option value="عند النوم">عند النوم</option>
+                            <option value="أثناء النوم">أثناء النوم</option>
+                            <option value="جرعة تصحيح">جرعة تصحيح (بدون أكل)</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="window.selectTrend('down')" class="trend-btn p-3 bg-slate-50 rounded-xl text-red-500 border border-transparent transition-colors shadow-sm"><i class="fa-solid fa-arrow-down"></i> سريع</button>
+                        <button onclick="window.selectTrend('flat')" class="trend-btn p-3 bg-blue-50 border border-primary text-primary font-bold rounded-xl transition-colors shadow-sm"><i class="fa-solid fa-arrow-right"></i> مستقر</button>
+                        <button onclick="window.selectTrend('up')" class="trend-btn p-3 bg-slate-50 rounded-xl text-orange-500 border border-transparent transition-colors shadow-sm"><i class="fa-solid fa-arrow-up"></i> صاعد</button>
+                    </div>
+                    <button id="btn-next-step-1" onclick="window.goToStep(2)" class="w-full bg-slate-800 text-white py-4 rounded-[2rem] font-black text-lg active:scale-95 transition-all shadow-lg flex justify-center items-center gap-2">متابعة للوجبة <i class="fa-solid fa-arrow-left"></i></button>
+                </div>
+
+                <!-- STEP 2: Meal Section -->
+                <div id="form-meal" class="hidden space-y-6 animate-[slideDown_0.2s_ease-out]">
+                    <!-- Manual Carb Input -->
+                    <div class="bg-amber-50/50 p-4 rounded-[2rem] text-center border border-amber-100 shadow-inner">
+                        <label class="text-[10px] font-black text-amber-800 uppercase tracking-widest">إجمالي الكربوهيدرات بالجرام</label>
+                        <div class="flex items-center justify-center mt-2">
+                            <input type="number" id="inp-carbs-val" class="w-1/2 bg-transparent border-none text-center text-6xl font-black text-amber-600 outline-none" placeholder="00" oninput="window.runLiveCalc()">
+                        </div>
+                    </div>
+
+                    <!-- Smart Food Database Calculator -->
+                    <div class="bg-white border border-slate-200 p-5 rounded-[2.5rem] shadow-sm space-y-4">
+                        <h4 class="text-xs font-black text-slate-700 flex items-center gap-2"><i class="fa-solid fa-scale-balanced text-primary bg-blue-50 p-2 rounded-lg"></i> حاسبة الطبق السريعة</h4>
+                        
+                        <div class="flex flex-col gap-3">
+                            <select id="food-db" class="w-full p-3.5 rounded-xl border border-slate-200 font-bold text-xs bg-slate-50 outline-none text-slate-700"></select>
+                            <div class="flex gap-2">
+                                <input type="number" id="food-weight" placeholder="الوزن بالجرام" class="flex-1 p-3.5 rounded-xl border border-slate-200 font-bold text-xs bg-slate-50 outline-none text-center">
+                                <button onclick="window.addFoodToPlate()" class="bg-primary text-white px-6 rounded-xl font-black text-xs hover:bg-blue-700 transition-colors shadow-md active:scale-95">أضف للطبق</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Food Plate Visual -->
+                    <div id="meal-plate-container" class="pt-4 border-t border-slate-100 flex flex-wrap gap-2 empty:hidden"></div>
+
+                    <div class="flex gap-3">
+                        <button onclick="window.goToStep(1)" class="w-1/3 bg-slate-100 text-slate-600 py-4 rounded-[2rem] font-black active:scale-95 transition-all">رجوع</button>
+                        <button onclick="window.goToStep(3)" class="w-2/3 bg-slate-800 text-white py-4 rounded-[2rem] font-black text-lg active:scale-95 transition-all shadow-lg flex justify-center items-center gap-2">متابعة للجرعة <i class="fa-solid fa-arrow-left"></i></button>
+                    </div>
+                </div>
+
+                <!-- STEP 3: Insulin Section -->
+                <div id="form-insulin" class="hidden space-y-6 animate-[slideDown_0.2s_ease-out]">
+                    <!-- Advanced Calculation Box -->
+                    <div class="bg-gradient-to-br from-primary to-indigo-700 p-6 rounded-[2.5rem] text-white text-center shadow-xl shadow-blue-500/30 relative overflow-hidden">
+                        <div class="absolute -top-10 -right-10 p-4 opacity-10 rotate-12"><i class="fa-solid fa-microchip text-9xl"></i></div>
+                        <div class="relative z-10">
+                            <div class="inline-block bg-white/20 backdrop-blur-sm px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/20 mb-3">
+                                <i class="fa-solid fa-calculator mr-1 text-amber-300"></i> الحاسبة السريرية التنبؤية (تراعي التراكم)
+                            </div>
+                            
+                            <div class="my-3 flex justify-center gap-3 text-left bg-black/10 p-3 rounded-2xl backdrop-blur-md border border-white/10" dir="ltr">
+                                <div class="text-center"><span class="text-white font-black text-base block" id="calc-carb-dose">0.0</span><span class="opacity-60 text-[8px] font-bold" dir="rtl">تغطية الأكل</span></div>
+                                <div class="w-px bg-white/20"></div>
+                                <div class="text-center"><span class="text-white font-black text-base block" id="calc-corr-dose">0.0</span><span class="opacity-60 text-[8px] font-bold" dir="rtl">تصحيح السكر</span></div>
+                                <div class="w-px bg-white/20"></div>
+                                <div class="text-center"><span class="text-red-300 font-black text-base block" id="calc-iob-deduct">-0.0</span><span class="opacity-60 text-[8px] font-bold text-red-200" dir="rtl">يُخصم نشط</span></div>
+                            </div>
+
+                            <div class="text-7xl font-black my-2 tracking-tighter" id="calc-result-units">0.0</div>
+                            <div class="text-[10px] font-bold text-blue-200 uppercase tracking-widest">إجمالي الجرعة المقترحة (وحدة)</div>
+                            
+                            <!-- Prediction Graph Mini -->
+                            <div class="mt-4 pt-4 border-t border-white/10 text-[9px] font-black uppercase flex justify-between bg-black/20 px-4 py-2 rounded-xl">
+                                <span class="flex flex-col items-center"><span class="opacity-50">+ساعة</span> <span id="sim-1" class="text-amber-300 text-sm mt-1">--</span></span>
+                                <span class="flex flex-col items-center"><span class="opacity-50">+ساعتين</span> <span id="sim-2" class="text-emerald-300 text-sm mt-1">--</span></span>
+                                <span class="flex flex-col items-center"><span class="opacity-50">+3ساعات</span> <span id="sim-3" class="text-blue-300 text-sm mt-1">--</span></span>
+                            </div>
+
+                            <button onclick="window.applySuggested()" class="bg-white text-primary px-8 py-3 rounded-2xl text-sm font-black mt-5 shadow-lg active:scale-95 transition-all w-full hover:bg-slate-50"><i class="fa-solid fa-hand-holding-droplet mr-1"></i> اعتماد هذه الجرعة للحقن</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="text-center border border-emerald-100 bg-emerald-50/50 p-4 rounded-[2rem]">
+                            <label class="text-[9px] font-black text-emerald-700 uppercase tracking-widest mb-3 block">سريع المفعول (وجبة/تصحيح)</label>
+                            <input type="number" step="0.5" id="inp-ins-fast-val" class="w-full bg-white border border-emerald-200 p-4 rounded-2xl text-center text-4xl font-black text-emerald-700 outline-none focus:ring-4 ring-emerald-500/20 transition-all shadow-inner" placeholder="0.0">
+                        </div>
+                        <div class="text-center border border-purple-100 bg-purple-50/50 p-4 rounded-[2rem]">
+                            <label class="text-[9px] font-black text-purple-700 uppercase tracking-widest mb-3 block">طويل المفعول (أساسي)</label>
+                            <input type="number" step="0.5" id="inp-ins-long-val" class="w-full bg-white border border-purple-200 p-4 rounded-2xl text-center text-4xl font-black text-purple-700 outline-none focus:ring-4 ring-purple-500/20 transition-all shadow-inner" placeholder="0.0">
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3 pt-2">
+                        <button id="btn-back-step-3" onclick="window.goToStep(2)" class="w-1/3 bg-slate-100 text-slate-600 py-5 rounded-[2rem] font-black active:scale-95 transition-all">رجوع</button>
+                        <button onclick="window.saveEntry()" id="btn-save-log" class="w-2/3 bg-emerald-600 text-white py-5 rounded-[2rem] font-black text-lg shadow-xl shadow-emerald-500/20 active:scale-95 transition-all flex justify-center items-center gap-2">حفظ السجل <i class="fa-solid fa-check-circle"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Container for PDF Rendering -->
+    <div id="pdf-render-wrapper">
+        <!-- FIRST PAGE: SUMMARY (Portrait) -->
+        <div id="pdf-summary-page" class="pdf-page-container pdf-summary-page">
+            <div style="border-bottom: 3px solid #1e40af; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; font-family: 'Tajawal', sans-serif;">
+                <h1 style="color:#1e40af; margin:0; font-size: 24px; font-weight: 800;">نظام سُكّـر - التقرير السريري المتكامل</h1>
+                <div style="text-align: left;">
+                    <p id="print-date" style="font-weight:bold; margin:0; font-size: 14px; color: #1e293b;"></p>
+                    <p id="print-filter-range" style="color:#64748b; margin:4px 0 0 0; font-size: 12px;"></p>
+                </div>
+            </div>
+            
+            <!-- Patient Info -->
+            <div style="display:flex; justify-content:space-between; margin-bottom:20px; background:#f1f5f9; padding:15px; border-radius:12px; font-size: 15px; font-family: 'Tajawal', sans-serif; font-weight: 700;">
+                <div><strong style="color:#64748b;">اسم المريض:</strong> <span id="print-name" style="color: #0f172a;">--</span></div>
+                <div><strong style="color:#64748b;">تاريخ الميلاد:</strong> <span id="print-dob" style="color: #0f172a;">--</span></div>
+                <div><strong style="color:#64748b;">ISF:</strong> <span id="print-isf" style="color: #0f172a;">--</span> | <strong style="color:#64748b;">ICR:</strong> <span id="print-icr" style="color: #0f172a;">--</span></div>
+            </div>
+            
+            <!-- Core Stats -->
+            <div style="display:flex; justify-content: space-between; gap:15px; margin-bottom:20px; text-align:center; font-family: 'Tajawal', sans-serif;">
+                <div style="flex:1; border:1px solid #bfdbfe; padding:15px; border-radius:12px; background:#eff6ff;">
+                    <span style="color: #1d4ed8; font-weight: bold; font-size: 13px;">متوسط السكر</span><br>
+                    <b style="font-size:26px; color:#1e40af; display:block; margin-top:8px;" id="print-avg">--</b>
+                </div>
+                <div style="flex:1; border:1px solid #bbf7d0; padding:15px; border-radius:12px; background:#f0fdf4;">
+                    <span style="color: #15803d; font-weight: bold; font-size: 13px;">طبيعي (<span id="print-target-range-lbl">90-180</span>)</span><br>
+                    <b style="font-size:26px; color:#059669; display:block; margin-top:8px;" id="print-target">--</b>
+                </div>
+                <div style="flex:1; border:1px solid #fecdd3; padding:15px; border-radius:12px; background:#fff1f2;">
+                    <span style="color: #be123c; font-weight: bold; font-size: 13px;">هبوط</span><br>
+                    <b style="font-size:26px; color:#e11d48; display:block; margin-top:8px;" id="print-lows">--</b>
+                </div>
+                <div style="flex:1; border:1px solid #ffedd5; padding:15px; border-radius:12px; background:#fff7ed;">
+                    <span style="color: #c2410c; font-weight: bold; font-size: 13px;">مرتفع</span><br>
+                    <b style="font-size:26px; color:#ea580c; display:block; margin-top:8px;" id="print-highs">--</b>
+                </div>
+            </div>
+            
+            <!-- HbA1c Stats -->
+            <div style="display:flex; justify-content: space-between; gap:15px; margin-bottom:25px; text-align:center; font-family: 'Tajawal', sans-serif;">
+                <div style="flex:1; border:1px solid #e9d5ff; padding:15px; border-radius:12px; background: #faf5ff;">
+                    <span style="color: #7e22ce; font-weight: bold; font-size: 13px;">التراكمي المتوقع للفترة</span><br>
+                    <b style="font-size:24px; color:#6b21a8; display:block; margin-top:8px;" id="print-a1c">--</b>
+                </div>
+                <div style="flex:1; border:1px solid #e2e8f0; padding:15px; border-radius:12px; background: #f8fafc;">
+                    <span style="color: #475569; font-weight: bold; font-size: 13px;">آخر فحص سريري</span><br>
+                    <b style="font-size:24px; color:#334155; display:block; margin-top:8px;" id="print-latest-lab">--</b>
+                </div>
+                <div style="flex:1; border:1px solid #e2e8f0; padding:15px; border-radius:12px; background: #f8fafc;">
+                    <span style="color: #475569; font-weight: bold; font-size: 13px;">معدل التقدم</span><br>
+                    <b style="font-size:20px; color: #0f172a; display:block; margin-top:12px;" id="print-progress">--</b>
+                </div>
+            </div>
+
+            <!-- Chart Image -->
+            <div style="margin-bottom: 25px; text-align: center; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; background: white; font-family: 'Tajawal', sans-serif;">
+                <h4 style="margin: 0 0 15px 0; color: #1e293b; font-size: 16px; font-weight: 800; text-align: right;">الرسم البياني لمسار السكر للفترة</h4>
+                <img id="pdf-chart-img" style="width: 100%; max-height: 280px; object-fit: contain;">
+            </div>
+
+            <!-- Recommendations Area for PDF -->
+            <div id="pdf-recommendations" style="margin-bottom: 20px; font-family: 'Tajawal', sans-serif;"></div>
+        </div>
+
+        <!-- TABLE PAGE TEMPLATE (Landscape) -->
+        <div id="pdf-table-page" class="pdf-page-container pdf-table-page">
+            <h3 style="color:#1e40af; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px; font-family: 'Tajawal', sans-serif; font-size: 18px; font-weight: 800;">سجل القراءات والجرعات التفصيلي</h3>
+            <table class="pdf-table" style="font-family: 'Tajawal', sans-serif;">
+                <thead>
+                    <tr>
+                        <th style="width: 12%;">اليوم</th>
+                        <th style="width: 12%;">التاريخ</th>
+                        <th style="width: 76%; text-align: right; padding-right: 15px;">سجل القراءات (السكر، الكربوهيدرات، الأنسولين)</th>
+                    </tr>
+                </thead>
+                <tbody id="pdf-table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, getDocs, onSnapshot, collection, addDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        let app, auth, db;
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD5vpRlNIHQhOa6wILjPvN1GV7Os0JEEXQ",
+            authDomain: "sukkar-96372.firebaseapp.com",
+            projectId: "sukkar-96372",
+            storageBucket: "sukkar-96372.firebasestorage.app",
+            messagingSenderId: "618182374204",
+            appId: "1:618182374204:web:9ab50418d25ff36b79a439"
+        };
+
+        const appIdGlobal = typeof __app_id !== 'undefined' ? __app_id : 'sukkar-default-app';
+
+        try {
+            app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+            auth = getAuth(app);
+            db = getFirestore(app);
+        } catch (error) {
+            console.error("Firebase Init Error:", error);
+        }
+
+        window.state = {
+            settings: { name: 'بطل سكر', isf: 50, icr: 10, targetMin: 90, targetMax: 180, duration: 4, dob: '', weight: '' },
+            logs: [],
+            labResults: [],
+            customFoods: [],
+            mealPlate: [], 
+            currentStep: 1,
+            currentTrend: 'flat',
+            view: 'dashboard',
+            authMode: 'login',
+            editingGroupTimestamp: null 
+        };
+
+        // دالة مركزية آمنة لإخفاء المودال
+        window.hideAuthModal = () => {
+            const m = document.getElementById('auth-modal');
+            if (m) {
+                m.style.display = 'none';
+                m.classList.remove('flex');
+                m.classList.add('hidden');
+            }
+        };
+
+        // دالة مركزية آمنة لإظهار المودال
+        window.showAuthModal = () => {
+            const m = document.getElementById('auth-modal');
+            if (m) {
+                m.style.display = 'flex';
+                m.classList.remove('hidden');
+                m.classList.add('flex');
+            }
+        };
+
+        const clearLoader = () => {
+            const loader = document.getElementById('global-loader');
+            if (loader) {
+                loader.style.pointerEvents = 'none';
+                loader.classList.add('opacity-0');
+                setTimeout(() => {
+                    loader.style.display = 'none';
+                }, 500);
+            }
+        };
+
+        let authResolved = false;
+
+        if (auth) {
+            onAuthStateChanged(auth, async (user) => {
+                authResolved = true;
+                window.appForceLoaded = true; // إيقاف كود الإنقاذ لأن النظام يعمل بشكل صحيح
+                clearLoader();
+                
+                if (user) {
+                    updateConnectionStatus(true);
+                    window.hideAuthModal();
+                    
+                    try {
+                        const profileRef = doc(db, 'artifacts', appIdGlobal, 'users', user.uid, 'settings', 'profile');
+                        const profileSnap = await getDoc(profileRef);
+                        
+                        if (!profileSnap.exists()) {
+                            const setupModal = document.getElementById('setup-modal');
+                            if(setupModal) {
+                                setupModal.style.display = 'flex';
+                                setupModal.classList.remove('hidden');
+                                setupModal.classList.add('flex');
+                            }
+                        } else {
+                            const data = profileSnap.data();
+                            if(data.target) { data.targetMin = 90; data.targetMax = 180; } 
+                            window.state.settings = { ...window.state.settings, ...data };
+                            initData(user.uid);
+                        }
+                    } catch (e) {
+                        console.error("Data fetch error:", e);
+                    }
+                } else {
+                    updateConnectionStatus(false);
+                    window.showAuthModal();
+                }
+            });
+        }
+
+        // Failsafe for iOS if Firebase is blocked by ITP
+        setTimeout(() => {
+            if (!authResolved) {
+                clearLoader();
+                window.showAuthModal();
+                window.showToast("تنبيه: متصفحك يمنع الاتصال بقاعدة البيانات. يرجى تفعيل 'السماح بالتتبع' في إعدادات سفاري/كروم.", "warning");
+            }
+        }, 5000);
+
+        const updateConnectionStatus = (isConnected) => {
+            const syncEl = document.getElementById('sync-status');
+            if(isConnected) {
+                syncEl.innerHTML = 'متصل بالبيانات';
+                syncEl.className = 'bg-green-50 text-green-600 px-3 py-1.5 rounded-full text-[10px] font-black';
+            } else {
+                syncEl.innerHTML = 'غير متصل';
+                syncEl.className = 'bg-amber-50 text-amber-600 px-3 py-1.5 rounded-full text-[10px] font-black';
+            }
+        };
+
+        const initFoodDB = () => {
+            const sel = document.getElementById('food-db');
+            if(!sel) return;
+            sel.innerHTML = '<option value="">-- اختر صنفاً من القائمة --</option>';
+            
+            if(window.state.customFoods.length > 0) {
+                const optgroupCustom = document.createElement('optgroup');
+                optgroupCustom.label = "أطعمة الأسرة المخصصة";
+                window.state.customFoods.forEach(f => {
+                    const opt = document.createElement('option');
+                    opt.value = f.id;
+                    opt.dataset.carbs = f.carbsPer100;
+                    opt.text = `⭐ ${f.name} (100جم = ${f.carbsPer100}ك)`;
+                    optgroupCustom.appendChild(opt);
+                });
+                sel.appendChild(optgroupCustom);
+            }
+
+            const categories = {};
+            baseFoodDatabase.forEach(f => {
+                const cat = f.category || "عام";
+                if(!categories[cat]) categories[cat] = [];
+                categories[cat].push(f);
+            });
+
+            for(const [catName, foods] of Object.entries(categories)) {
+                const optgroupBase = document.createElement('optgroup');
+                optgroupBase.label = catName;
+                foods.forEach(f => {
+                    const opt = document.createElement('option');
+                    opt.value = f.id;
+                    opt.dataset.carbs = f.carbsPer100;
+                    opt.text = `${f.name} (100جم = ${f.carbsPer100}ك)`;
+                    optgroupBase.appendChild(opt);
+                });
+                sel.appendChild(optgroupBase);
+            }
+        };
+
+        // --- AUTH LOGIC ---
+        window.toggleAuthMode = () => {
+            const mode = window.state.authMode === 'login' ? 'register' : 'login';
+            window.state.authMode = mode;
+            
+            document.getElementById('auth-title').innerText = mode === 'login' ? 'تسجيل الدخول' : 'إنشاء حساب جديد';
+            document.getElementById('auth-subtitle').innerText = mode === 'login' ? 'أهلاً بك، يرجى تسجيل الدخول للوصول للملف الطبي' : 'أهلاً بك! اختر اسماً وكلمة مرور للبدء';
+            
+            const icon = document.getElementById('auth-icon');
+            const iconBox = document.getElementById('auth-icon-box');
+            
+            if (mode === 'register') {
+                icon.className = "fa-solid fa-user-plus text-4xl";
+                iconBox.className = "w-20 h-20 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-sm";
+            } else {
+                icon.className = "fa-solid fa-user-shield text-4xl";
+                iconBox.className = "w-20 h-20 bg-blue-50 text-primary rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-sm";
+            }
+
+            document.getElementById('btn-login-main').classList.toggle('hidden', mode === 'register');
+            document.getElementById('btn-register-main').classList.toggle('hidden', mode === 'login');
+            document.getElementById('auth-toggle-text').innerText = mode === 'login' ? 'مستخدم جديد؟ اضغط لإنشاء حساب' : 'لديك حساب بالفعل؟ سجل دخولك';
+        };
+
+        window.handleAuth = async (mode) => {
+            if (!auth) return window.showToast("عذراً، خدمات السحابة غير متوفرة", "error");
+
+            const user = document.getElementById('auth-userid').value.trim();
+            const pass = document.getElementById('auth-pass').value.trim();
+            
+            if(!user || !pass) return window.showToast("الرجاء تعبئة جميع الحقول", "error");
+            if(pass.length < 6) return window.showToast("كلمة المرور يجب أن تكون 6 أحرف فأكثر", "error");
+            
+            const email = user.includes('@') ? user : `${user}@sukkar.app`;
+            const btn = document.getElementById(mode === 'login' ? 'btn-login-main' : 'btn-register-main');
+            const orig = btn.innerText;
+            btn.innerText = "جاري الاتصال..."; btn.disabled = true;
+
+            try {
+                if(mode === 'register') {
+                    await createUserWithEmailAndPassword(auth, email, pass);
+                    window.hideAuthModal();
+                    window.showToast("تم إنشاء الحساب وانطلقنا! 🎉", "success");
+                } else {
+                    await signInWithEmailAndPassword(auth, email, pass);
+                    window.hideAuthModal();
+                    window.showToast("أهلاً بك مجدداً", "success");
+                }
+            } catch (err) {
+                console.error(err);
+                let msg = "فشل التحقق من البيانات";
+                if(err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') msg = "تأكد من اسم المستخدم وكلمة المرور";
+                if(err.code === 'auth/email-already-in-use') msg = "هذا الحساب موجود مسبقاً، جرب تسجيل الدخول";
+                window.showToast(msg, "error");
+            } finally {
+                btn.innerText = orig; btn.disabled = false;
+            }
+        };
+
+        window.logoutAndReset = () => {
+            if(confirm("هل تود تسجيل الخروج حقاً؟")) {
+                if(auth) signOut(auth);
+                location.reload();
+            }
+        };
+
+        window.saveInitialProfile = async () => {
+            const name = document.getElementById('setup-name').value.trim();
+            if(!name) return window.showToast('الرجاء كتابة اسمك للبدء', 'warning');
+            
+            window.state.settings.name = name;
+            
+            if(auth && auth.currentUser) {
+                try {
+                    await setDoc(doc(db, 'artifacts', appIdGlobal, 'users', auth.currentUser.uid, 'settings', 'profile'), window.state.settings);
+                    const setupModal = document.getElementById('setup-modal');
+                    if(setupModal) {
+                        setupModal.style.display = 'none';
+                        setupModal.classList.add('hidden');
+                        setupModal.classList.remove('flex');
+                    }
+                    window.showToast("تم تهيئة ملفك بنجاح! 🎉", "success");
+                    initData(auth.currentUser.uid);
+                } catch(e) {
+                    window.showToast("حدث خطأ أثناء حفظ الملف الأولي", "error");
+                }
+            }
+        }
+
+        const initData = (uid) => {
+            onSnapshot(doc(db, 'artifacts', appIdGlobal, 'users', uid, 'settings', 'profile'), (snap) => {
+                if(snap.exists()) {
+                    window.state.settings = { ...window.state.settings, ...snap.data() };
+                    updateSettingsUI();
+                }
+                window.refreshAppUI();
+            });
+
+            onSnapshot(collection(db, 'artifacts', appIdGlobal, 'users', uid, 'logs'), (snap) => {
+                const logs = [];
+                snap.forEach(d => logs.push({ id: d.id, ...d.data() }));
+                window.state.logs = logs.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+                window.refreshAppUI();
+            });
+
+            onSnapshot(collection(db, 'artifacts', appIdGlobal, 'users', uid, 'hba1c'), (snap) => {
+                const labs = [];
+                snap.forEach(d => labs.push({ id: d.id, ...d.data() }));
+                window.state.labResults = labs.sort((a,b) => new Date(b.date) - new Date(a.date));
+                renderLabResults();
+                if(window.state.view === 'reports') window.renderReports(); 
+            });
+
+            onSnapshot(collection(db, 'artifacts', appIdGlobal, 'users', uid, 'custom_foods'), (snap) => {
+                const cFoods = [];
+                snap.forEach(d => cFoods.push({ id: d.id, ...d.data() }));
+                window.state.customFoods = cFoods;
+                initFoodDB();
+                renderCustomFoodsList();
+            });
+        };
+
+        window.forceSync = async () => {
+            if(!auth.currentUser) return;
+            window.showToast('جاري تحديث السجلات...', 'info');
+            const uid = auth.currentUser.uid;
+            try {
+                const snap = await getDocs(collection(db, 'artifacts', appIdGlobal, 'users', uid, 'logs'));
+                const logs = [];
+                snap.forEach(d => logs.push({ id: d.id, ...d.data() }));
+                window.state.logs = logs.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+                window.refreshAppUI();
+                setTimeout(() => window.showToast('البيانات محدثة', 'success'), 500);
+            } catch(e) {
+                window.showToast('حدث خطأ أثناء التحديث', 'error');
+            }
+        };
+
+        // --- CORE FUNCTIONS ---
+        window.refreshAppUI = () => {
+            updateDashboard();
+            renderTimeline();
+            if(window.state.view === 'reports') window.renderReports();
+        };
+
+        const updateDashboard = () => {
+            const bgs = window.state.logs.filter(l => l.type === 'bg');
+            document.getElementById('welcome-name').innerText = `مرحباً ${window.state.settings.name}`;
+            document.getElementById('dashboard-date-str').innerText = new Date().toLocaleDateString('ar-SA', {weekday:'long', day:'numeric', month:'long'});
+            
+            if(bgs.length > 0) {
+                const latest = bgs[0];
+                document.getElementById('latest-bg-value').innerText = latest.value;
+                document.getElementById('bg-time-badge').innerText = new Date(latest.timestamp).toLocaleTimeString('ar-SA', {hour:'2-digit', minute:'2-digit'});
+                
+                const status = document.getElementById('latest-bg-status-msg');
+                if(latest.value < window.state.settings.targetMin) {
+                    status.innerText = "هبوط! تناول السكر فوراً";
+                    status.className = "inline-flex items-center gap-2 px-6 py-2 rounded-full text-sm font-black bg-red-50 text-red-600 mt-4 pulse-red";
+                } else if(latest.value > window.state.settings.targetMax) {
+                    status.innerText = "ارتفاع في السكر";
+                    status.className = "inline-flex items-center gap-2 px-6 py-2 rounded-full text-sm font-black bg-orange-50 text-orange-600 mt-4";
+                } else {
+                    status.innerText = "قراءة ممتازة ومستقرة";
+                    status.className = "inline-flex items-center gap-2 px-6 py-2 rounded-full text-sm font-black bg-emerald-50 text-emerald-600 mt-4";
+                }
+            }
+
+            document.getElementById('dash-iob').innerHTML = `${calculateIOB().toFixed(1)} <span class="text-xs font-normal text-slate-400">u</span>`;
+            const today = new Date().toDateString();
+            const dayCarbs = window.state.logs.filter(l => l.type === 'meal' && new Date(l.timestamp).toDateString() === today).reduce((s,l)=>s+l.value, 0);
+            document.getElementById('dash-carbs').innerHTML = `${dayCarbs} <span class="text-xs font-normal text-slate-400">g</span>`;
+        };
+
+        // --- NEW PREDICTION HELPERS ---
+        const getTimestampFromInputs = () => {
+            const d = document.getElementById('log-date').value;
+            const t = document.getElementById('log-time').value;
+            if(d && t) return new Date(`${d}T${t}:00`);
+            return new Date();
+        };
+
+        const getIOBAtTime = (targetTime) => {
+            const limit = (window.state.settings.duration || 4) * 3600000;
+            return window.state.logs.filter(l => l.type === 'insulin' && new Date(l.timestamp) < targetTime && (targetTime - new Date(l.timestamp)) < limit)
+                .reduce((total, l) => {
+                    const ratio = 1 - ((targetTime - new Date(l.timestamp)) / limit);
+                    return total + (l.value * Math.max(0, ratio));
+                }, 0);
+        };
+
+        const getCOBAtTime = (targetTime) => {
+            const limit = 3 * 3600000; // Carbs digest over 3 hours
+            return window.state.logs.filter(l => l.type === 'meal' && new Date(l.timestamp) < targetTime && (targetTime - new Date(l.timestamp)) < limit)
+                .reduce((total, l) => {
+                    const ratio = 1 - ((targetTime - new Date(l.timestamp)) / limit);
+                    return total + (l.value * Math.max(0, ratio));
+                }, 0);
+        };
+
+        const calculateIOB = () => getIOBAtTime(new Date());
+
+
+        window.handleContextChange = () => {
+            const ctx = document.getElementById('log-context').value;
+            const btnNext1 = document.getElementById('btn-next-step-1');
+            const btnBack3 = document.getElementById('btn-back-step-3');
+            const step2Ind = document.getElementById('step-2-ind');
+            
+            if (ctx === 'جرعة تصحيح') {
+                btnNext1.innerHTML = 'متابعة للجرعة <i class="fa-solid fa-arrow-left"></i>';
+                btnNext1.onclick = () => window.goToStep(3);
+                if(btnBack3) btnBack3.onclick = () => window.goToStep(1);
+                if(step2Ind) step2Ind.style.opacity = '0.3';
+                
+                document.getElementById('inp-carbs-val').value = '';
+                window.state.mealPlate = [];
+                renderMealPlate();
+            } else {
+                btnNext1.innerHTML = 'متابعة للوجبة <i class="fa-solid fa-arrow-left"></i>';
+                btnNext1.onclick = () => window.goToStep(2);
+                if(btnBack3) btnBack3.onclick = () => window.goToStep(2);
+                if(step2Ind) step2Ind.style.opacity = '1';
+            }
+            window.runLiveCalc();
+        };
+
+        // --- SMART WIZARD & CALC CALCULATOR ---
+        window.openLogger = (startStep = 1, isEdit = false, groupTimestamp = null) => {
+            const logModal = document.getElementById('log-modal');
+            const sheet = document.getElementById('log-modal-sheet');
+            if(logModal) {
+                logModal.style.display = 'flex';
+                logModal.classList.remove('hidden');
+                setTimeout(() => sheet.classList.remove('translate-y-full'), 10);
+            }
+            
+            const now = new Date();
+            document.getElementById('log-date').value = now.toISOString().split('T')[0];
+            document.getElementById('log-time').value = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+            
+            window.state.editingGroupTimestamp = null;
+            document.getElementById('log-context').value = 'عشوائي';
+
+            if(isEdit && groupTimestamp) {
+                const groupDate = new Date(groupTimestamp);
+                document.getElementById('log-date').value = groupDate.toISOString().split('T')[0];
+                document.getElementById('log-time').value = `${String(groupDate.getHours()).padStart(2,'0')}:${String(groupDate.getMinutes()).padStart(2,'0')}`;
+                
+                window.state.editingGroupTimestamp = groupTimestamp;
+            const groupLogs = window.state.logs.filter(l => l.timestamp === groupTimestamp);
+
+            groupLogs.forEach(l => {
+                if(l.type === 'bg') {
+                    document.getElementById('inp-bg-val').value = l.value;
+                    if(l.context) document.getElementById('log-context').value = l.context;
+                    window.selectTrend(l.trend || 'flat');
+                }
+                if(l.type === 'meal') {
+                    document.getElementById('inp-carbs-val').value = l.value;
+                    if(l.items && Array.isArray(l.items)) {
+                        window.state.mealPlate = l.items.map(item => ({...item, isEditing: false}));
+                    } else {
+                        window.state.mealPlate = [];
+                    }
+                    renderMealPlate();
+                }
+                if(l.type === 'insulin') document.getElementById('inp-ins-fast-val').value = l.value;
+                if(l.type === 'insulin_long') document.getElementById('inp-ins-long-val').value = l.value;
+            });
+            document.getElementById('modal-title').innerText = "تعديل السجل السريري";
+        } else {
+            document.getElementById('modal-title').innerText = "تسجيل قراءة شاملة";
+        }
+
+        window.handleContextChange();
+        window.goToStep(startStep);
+    };
+
+    window.closeLogger = () => {
+        const sheet = document.getElementById('log-modal-sheet');
+        const modal = document.getElementById('log-modal');
+        if(sheet) sheet.classList.add('translate-y-full');
+        setTimeout(() => {
+            if(modal) {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+            }
+        }, 300);
+        
+        ['inp-bg-val', 'inp-carbs-val', 'inp-ins-fast-val', 'inp-ins-long-val', 'food-weight', 'food-db'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.value = '';
+        });
+        document.getElementById('calc-result-units').innerText = '0.0';
+            ['sim-1','sim-2','sim-3'].forEach(id => document.getElementById(id).innerText = '--');
+            window.state.mealPlate = [];
+            window.state.editingGroupTimestamp = null;
+            renderMealPlate();
+        };
+
+        window.goToStep = (step) => {
+            window.state.currentStep = step;
+            
+            ['form-bg', 'form-meal', 'form-insulin'].forEach((id, index) => {
+                document.getElementById(id).classList.toggle('hidden', index + 1 !== step);
+            });
+
+            [1, 2, 3].forEach(i => {
+                const ind = document.getElementById(`step-${i}-ind`);
+                if(i < step) {
+                    ind.className = "w-10 h-10 rounded-full flex items-center justify-center font-black text-white bg-emerald-500 z-10 transition-all cursor-pointer";
+                    ind.innerHTML = '<i class="fa-solid fa-check"></i>';
+                } else if(i === step) {
+                    ind.className = "w-10 h-10 rounded-full flex items-center justify-center font-black text-white bg-primary z-10 shadow-lg shadow-blue-500/30 transition-all transform scale-110 cursor-pointer";
+                    const icons = ['fa-droplet', 'fa-utensils', 'fa-syringe'];
+                    ind.innerHTML = `<i class="fa-solid ${icons[i-1]}"></i>`;
+                } else {
+                    ind.className = "w-10 h-10 rounded-full flex items-center justify-center font-black text-slate-400 bg-slate-200 z-10 transition-all cursor-pointer";
+                    const icons = ['fa-droplet', 'fa-utensils', 'fa-syringe'];
+                    ind.innerHTML = `<i class="fa-solid ${icons[i-1]}"></i>`;
+                }
+            });
+
+            if(step === 3) window.runLiveCalc();
+        };
+
+        // --- FOOD DATABASE LOGIC ---
+        window.addCustomFood = async () => {
+            const name = document.getElementById('cust-food-name').value.trim();
+            const carbs = parseFloat(document.getElementById('cust-food-carbs').value);
+
+            if(!name || !carbs || carbs <= 0) return window.showToast("الرجاء إدخال اسم الصنف والكارب لـ 100جم", "warning");
+            if(!auth.currentUser) return;
+
+            try {
+                const col = collection(db, 'artifacts', appIdGlobal, 'users', auth.currentUser.uid, 'custom_foods');
+                await addDoc(col, { name, carbsPer100: carbs });
+                document.getElementById('cust-food-name').value = '';
+                document.getElementById('cust-food-carbs').value = '';
+                window.showToast("تمت إضافة الصنف للقائمة", "success");
+            } catch(e) {
+                window.showToast("حدث خطأ أثناء الإضافة", "error");
+            }
+        };
+
+        const renderCustomFoodsList = () => {
+            const container = document.getElementById('custom-food-list');
+            if(!container) return;
+            container.innerHTML = '';
+            if(window.state.customFoods.length === 0) {
+                container.innerHTML = '<div class="text-[10px] text-slate-400 text-center py-2">لا توجد أطعمة مضافة حالياً</div>';
+                return;
+            }
+            window.state.customFoods.forEach(f => {
+                const div = document.createElement('div');
+                div.className = "flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm animate-[slideDown_0.2s_ease-out]";
+                div.innerHTML = `
+                    <div><span class="font-black text-xs text-slate-700">${f.name}</span><div class="text-[9px] text-slate-400 font-bold">كل 100 جم يعطي ${f.carbsPer100} كرب</div></div>
+                    <button onclick="window.deleteCustomFood('${f.id}')" class="text-red-300 hover:text-red-500"><i class="fa-solid fa-trash-can"></i></button>
+                `;
+                container.appendChild(div);
+            });
+        };
+
+        window.deleteCustomFood = async (id) => {
+            if(!confirm("حذف هذا الصنف؟") || !auth.currentUser) return;
+            await deleteDoc(doc(db, 'artifacts', appIdGlobal, 'users', auth.currentUser.uid, 'custom_foods', id));
+        };
+
+        window.addFoodToPlate = () => {
+            const selId = document.getElementById('food-db').value;
+            const weight = parseFloat(document.getElementById('food-weight').value);
+            
+            if(!selId || !weight || weight <= 0) return window.showToast("الرجاء اختيار الصنف وتحديد وزنه", "warning");
+
+            const sel = document.getElementById('food-db');
+            const opt = sel.options[sel.selectedIndex];
+            const carbsPer100 = parseFloat(opt.dataset.carbs);
+            const foodName = opt.text.split('(')[0].trim();
+
+            const calcCarbs = Math.round((weight / 100) * carbsPer100);
+            const entry = { uniqueId: Date.now(), name: foodName, weight: weight, carbs: calcCarbs, carbsPer100: carbsPer100 };
+            
+            window.state.mealPlate.push(entry);
+            document.getElementById('food-weight').value = '';
+            
+            renderMealPlate();
+            updateTotalCarbsFromPlate();
+        };
+
+        window.removeFoodFromPlate = (uniqueId) => {
+            window.state.mealPlate = window.state.mealPlate.filter(item => item.uniqueId !== uniqueId);
+            renderMealPlate();
+            updateTotalCarbsFromPlate();
+        };
+        
+        window.startEditFood = (id) => {
+            const item = window.state.mealPlate.find(i => i.uniqueId === id);
+            if(item) { item.isEditing = true; renderMealPlate(); }
+        };
+        
+        window.cancelEditFood = (id) => {
+            const item = window.state.mealPlate.find(i => i.uniqueId === id);
+            if(item) { item.isEditing = false; renderMealPlate(); }
+        };
+        
+        window.saveEditFood = (id) => {
+            const item = window.state.mealPlate.find(i => i.uniqueId === id);
+            if(item) {
+                if (item.weight === '-') {
+                    const newCarbs = parseFloat(document.getElementById('edit-carb-'+id).value);
+                    if (newCarbs >= 0) {
+                        item.carbs = newCarbs;
+                        item.isEditing = false;
+                    } else { window.showToast('قيمة غير صالحة', 'error'); return; }
+                } else {
+                    const newWeight = parseFloat(document.getElementById('edit-weight-'+id).value);
+                    if (newWeight > 0) {
+                        item.weight = newWeight;
+                        let cp100 = item.carbsPer100 || (item.carbs / (item.weight || 1)) * 100;
+                        item.carbs = Math.round((newWeight / 100) * cp100);
+                        item.isEditing = false;
+                    } else { window.showToast('وزن غير صالح', 'error'); return; }
+                }
+                renderMealPlate();
+                updateTotalCarbsFromPlate();
+            }
+        };
+
+        const renderMealPlate = () => {
+            const container = document.getElementById('meal-plate-container');
+            container.innerHTML = '';
+            if (window.state.mealPlate.length > 0) {
+                const header = document.createElement('div');
+                header.className = 'text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest w-full px-1';
+                header.innerText = 'مكونات الوجبة الحالية (اضغط على الاسم لتعديل الكمية):';
+                container.appendChild(header);
+
+                const list = document.createElement('div');
+                list.className = 'flex flex-col gap-2 w-full';
+                window.state.mealPlate.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = "bg-slate-50 border border-slate-200 px-4 py-3 rounded-2xl text-xs font-bold text-slate-700 shadow-sm animate-[slideDown_0.2s_ease-out] w-full flex flex-col gap-2 transition-all";
+
+                    if (item.isEditing) {
+                        if (item.weight === '-') {
+                            div.innerHTML = `
+                                <div class="flex items-center justify-between w-full mb-1">
+                                    <span class="text-purple-600"><i class="fa-solid fa-utensils mr-1"></i> ${item.name}</span>
+                                </div>
+                                <div class="flex items-center gap-2 w-full">
+                                    <input type="number" id="edit-carb-${item.uniqueId}" value="${item.carbs}" class="w-20 p-2 border border-purple-300 rounded-xl text-center text-xs font-black outline-none focus:ring-2 ring-purple-500/20" placeholder="الكارب">
+                                    <span class="text-[10px] text-slate-400">جرام كارب</span>
+                                    <button onclick="window.saveEditFood(${item.uniqueId})" class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-[10px] font-black mr-auto shadow-md active:scale-95"><i class="fa-solid fa-check"></i> حفظ</button>
+                                    <button onclick="window.cancelEditFood(${item.uniqueId})" class="bg-slate-200 text-slate-600 px-4 py-2 rounded-xl text-[10px] font-black active:scale-95"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
+                            `;
+                        } else {
+                            div.innerHTML = `
+                                <div class="flex items-center justify-between w-full mb-1">
+                                    <span class="text-primary"><i class="fa-solid fa-bowl-food mr-1"></i> ${item.name}</span>
+                                </div>
+                                <div class="flex items-center gap-2 w-full">
+                                    <input type="number" id="edit-weight-${item.uniqueId}" value="${item.weight}" class="w-20 p-2 border border-blue-300 rounded-xl text-center text-xs font-black outline-none focus:ring-2 ring-blue-500/20" placeholder="الوزن">
+                                    <span class="text-[10px] text-slate-400">جرام وزن</span>
+                                    <button onclick="window.saveEditFood(${item.uniqueId})" class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-[10px] font-black mr-auto shadow-md active:scale-95"><i class="fa-solid fa-check"></i> حفظ</button>
+                                    <button onclick="window.cancelEditFood(${item.uniqueId})" class="bg-slate-200 text-slate-600 px-4 py-2 rounded-xl text-[10px] font-black active:scale-95"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
+                            `;
+                        }
+                    } else {
+                        div.innerHTML = `
+                            <div class="flex justify-between items-center w-full">
+                                <div class="flex items-center gap-2 cursor-pointer group flex-1" onclick="window.startEditFood(${item.uniqueId})" title="اضغط لتعديل الكمية">
+                                    <span class="w-2.5 h-2.5 rounded-full ${item.weight === '-' ? 'bg-purple-400' : 'bg-amber-400'} shadow-sm"></span>
+                                    <span class="group-hover:text-primary transition-colors text-sm">${item.name.replace('✨','')} <span class="text-[10px] text-slate-400 font-normal mr-1">(${item.weight !== '-' ? item.weight + 'g' : 'مقدر'})</span> <i class="fa-solid fa-pen text-[10px] text-slate-300 mr-2 opacity-0 group-hover:opacity-100 transition-opacity"></i></span>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <span class="${item.weight === '-' ? 'text-purple-600' : 'text-amber-600'} font-black text-sm">${item.carbs}g</span>
+                                    <button onclick="event.stopPropagation(); window.removeFoodFromPlate(${item.uniqueId})" class="w-8 h-8 rounded-full bg-red-100 text-red-600 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all shadow-sm active:scale-95" title="حذف من الوجبة"><i class="fa-solid fa-trash-can text-[12px]"></i></button>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    list.appendChild(div);
+                });
+                container.appendChild(list);
+            }
+        };
+
+        const updateTotalCarbsFromPlate = () => {
+            const total = window.state.mealPlate.reduce((sum, item) => sum + item.carbs, 0);
+            document.getElementById('inp-carbs-val').value = total || '';
+            window.runLiveCalc();
+        };
+
+        window.runLiveCalc = () => {
+            const bg = parseFloat(document.getElementById('inp-bg-val').value) || 0;
+            const carbs = parseFloat(document.getElementById('inp-carbs-val').value) || 0;
+            const { isf, icr, targetMin, targetMax } = window.state.settings;
+            const logTime = getTimestampFromInputs();
+            
+            let carbDose = (carbs > 0 && icr > 0) ? (carbs / icr) : 0;
+            
+            // Calculate Correction Dose aiming for the middle of the target range
+            let targetVal = (targetMin + targetMax) / 2;
+            let corrDose = 0;
+            if(bg > 0 && isf > 0) {
+                if (bg > targetMax) corrDose = (bg - targetVal) / isf;
+                else if (bg < targetMin) corrDose = (bg - targetVal) / isf; // Negative correction if below min
+            }
+
+            let currentIOB = getIOBAtTime(logTime);
+            let currentCOB = getCOBAtTime(logTime);
+            
+            // Medical logic: Deduct IOB from correction only. If BG is below target, negative correction reduces carb dose.
+            let netCorr = bg > 0 && bg < targetVal ? corrDose : Math.max(0, corrDose - currentIOB);
+            let totalSuggestedDose = carbDose + netCorr;
+            
+            // Trend adjustment (+/- 10-20%)
+            if(bg > 0) {
+                if(window.state.currentTrend === 'up') totalSuggestedDose += (totalSuggestedDose * 0.1);
+                if(window.state.currentTrend === 'up-fast') totalSuggestedDose += (totalSuggestedDose * 0.2);
+                if(window.state.currentTrend === 'down') totalSuggestedDose -= (totalSuggestedDose * 0.1);
+                if(window.state.currentTrend === 'down-fast') totalSuggestedDose -= (totalSuggestedDose * 0.2);
+            }
+
+            const finalDose = Math.max(0, Math.round(totalSuggestedDose * 2) / 2);
+            
+            // Update UI Details
+            document.getElementById('calc-carb-dose').innerText = carbDose.toFixed(1);
+            document.getElementById('calc-corr-dose').innerText = corrDose.toFixed(1);
+            document.getElementById('calc-iob-deduct').innerText = bg >= targetVal ? `-${Math.min(Math.max(0,corrDose), currentIOB).toFixed(1)}` : '0.0';
+            document.getElementById('calc-result-units').innerText = finalDose.toFixed(1);
+
+            // INTELLIGENT SIMULATION ENGINE (Factors in history)
+            if(bg > 0) {
+                const userInsulinInput = parseFloat(document.getElementById('inp-ins-fast-val').value);
+                const plannedInsulin = !isNaN(userInsulinInput) ? userInsulinInput : finalDose;
+
+                const totalActiveInsulin = plannedInsulin + currentIOB;
+                const totalActiveCarbs = carbs + currentCOB;
+
+                const maxRise = (totalActiveCarbs / (icr || 1)) * (isf || 50);
+                const maxDrop = totalActiveInsulin * (isf || 50);
+                
+                // Cumulative % action per hour [1h, 2h, 3h]
+                const cAction = [0.5, 0.85, 1.0]; 
+                const iAction = [0.3, 0.7, 0.95];
+
+                // Add learning offset if context is Post-Prandial
+                let learnOffset = 0;
+                const context = document.getElementById('log-context').value;
+                const pastLogs = window.state.logs.filter(l => l.type === 'bg' && l.context === context);
+                if(pastLogs.length >= 3) {
+                    const avgHistory = pastLogs.reduce((s, l) => s + l.value, 0) / pastLogs.length;
+                    learnOffset = (avgHistory - targetVal) * 0.4; // 40% learning weight
+                }
+                
+                let momentum = 0;
+                if(window.state.currentTrend === 'up') momentum = 15;
+                if(window.state.currentTrend === 'up-fast') momentum = 30;
+                if(window.state.currentTrend === 'down') momentum = -15;
+                if(window.state.currentTrend === 'down-fast') momentum = -30;
+
+                const s1 = Math.max(40, Math.round(bg + (maxRise * cAction[0]) - (maxDrop * iAction[0]) + momentum + (learnOffset*0.3)));
+                const s2 = Math.max(40, Math.round(bg + (maxRise * cAction[1]) - (maxDrop * iAction[1]) + (momentum*0.5) + (learnOffset*0.8)));
+                const s3 = Math.max(40, Math.round(bg + (maxRise * cAction[2]) - (maxDrop * iAction[2]) + learnOffset));
+                
+                document.getElementById('sim-1').innerText = s1;
+                document.getElementById('sim-2').innerText = s2;
+                document.getElementById('sim-3').innerText = s3;
+            } else {
+                document.getElementById('sim-1').innerText = '--';
+                document.getElementById('sim-2').innerText = '--';
+                document.getElementById('sim-3').innerText = '--';
+            }
+        };
+
+        window.applySuggested = () => {
+            document.getElementById('inp-ins-fast-val').value = document.getElementById('calc-result-units').innerText;
+            window.showToast("تم اعتماد الجرعة السريعة، يمكنك تعديلها أو الحفظ", "info");
+            window.runLiveCalc(); // Re-run to update prediction graph based on applied dose
+        };
+
+        window.saveEntry = async () => {
+            const bg = parseFloat(document.getElementById('inp-bg-val').value);
+            const carb = parseFloat(document.getElementById('inp-carbs-val').value);
+            const insFast = parseFloat(document.getElementById('inp-ins-fast-val').value);
+            const insLong = parseFloat(document.getElementById('inp-ins-long-val').value);
+            const context = document.getElementById('log-context').value;
+            
+            if(!bg && !carb && !insFast && !insLong) return window.showToast("الرجاء إدخال قيمة واحدة على الأقل", "warning");
+
+            const dateVal = document.getElementById('log-date').value;
+            const timeVal = document.getElementById('log-time').value;
+            if(!dateVal || !timeVal) return window.showToast("الرجاء التأكد من التاريخ والوقت", "error");
+            
+            const customTimestamp = new Date(`${dateVal}T${timeVal}:00`).toISOString();
+
+            const btn = document.getElementById('btn-save-log');
+            const origHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الحفظ...';
+            btn.disabled = true;
+
+            if(!auth.currentUser) {
+                btn.innerHTML = origHTML; btn.disabled = false;
+                return window.showToast("فقد الاتصال بالسحابة، يرجى تحديث الصفحة أو تسجيل الدخول", "error");
+            }
+
+            try {
+                const batch = writeBatch(db);
+                const colRef = collection(db, 'artifacts', appIdGlobal, 'users', auth.currentUser.uid, 'logs');
+
+                if (window.state.editingGroupTimestamp) {
+                    const oldLogs = window.state.logs.filter(l => l.timestamp === window.state.editingGroupTimestamp);
+                    oldLogs.forEach(l => {
+                        batch.delete(doc(db, 'artifacts', appIdGlobal, 'users', auth.currentUser.uid, 'logs', l.id));
+                    });
+                }
+
+                if(bg) {
+                    const bgDoc = doc(colRef);
+                    batch.set(bgDoc, { type:'bg', value:bg, trend:window.state.currentTrend, context:context, timestamp:customTimestamp });
+                }
+                if(carb) {
+                    const carbDoc = doc(colRef);
+                    let mealData = { type:'meal', value:carb, timestamp:customTimestamp };
+                    if(window.state.mealPlate.length > 0) mealData.items = window.state.mealPlate;
+                    batch.set(carbDoc, mealData);
+                }
+                if(insFast) {
+                    const insDoc = doc(colRef);
+                    batch.set(insDoc, { type:'insulin', value:insFast, timestamp:customTimestamp });
+                }
+                if(insLong) {
+                    const insLongDoc = doc(colRef);
+                    batch.set(insLongDoc, { type:'insulin_long', value:insLong, timestamp:customTimestamp });
+                }
+                
+                await batch.commit();
+
+                if(bg >= window.state.settings.targetMin && bg <= window.state.settings.targetMax) {
+                    confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+                }
+                window.showToast("تم تأمين وحفظ السجل السريري بنجاح", "success");
+                window.closeLogger();
+            } catch (e) {
+                console.error(e);
+                window.showToast("حدث خطأ أثناء الحفظ (تأكد من اتصالك بالإنترنت)", "error");
+            } finally {
+                btn.innerHTML = origHTML;
+                btn.disabled = false;
+            }
+        };
+
+        // --- NAVIGATION & UI ---
+        window.switchView = (v) => {
+            window.state.view = v;
+            document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+            document.getElementById(`view-${v}`).classList.remove('hidden');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.add('text-slate-400'));
+            document.querySelector(`[data-target="${v}"]`).classList.remove('text-slate-400');
+            document.querySelector(`[data-target="${v}"]`).classList.add('active');
+            
+            if(v === 'reports') setTimeout(window.renderReports, 100);
+            if(v === 'settings') updateSettingsUI();
+        };
+
+        window.selectTrend = (t) => {
+            window.state.currentTrend = t;
+            document.querySelectorAll('.trend-btn').forEach(b => {
+                b.classList.remove('bg-blue-50', 'border-primary', 'text-primary', 'font-bold', 'shadow-sm');
+                b.classList.add('bg-slate-50', 'border-transparent');
+            });
+            const activeBtn = Array.from(document.querySelectorAll('.trend-btn')).find(b => b.getAttribute('onclick').includes(t));
+            if(activeBtn) {
+                activeBtn.classList.remove('bg-slate-50', 'border-transparent');
+                activeBtn.classList.add('bg-blue-50', 'border-primary', 'text-primary', 'font-bold', 'shadow-sm');
+            }
+            window.runLiveCalc();
+        };
+
+        // --- CONSOLIDATED TIMELINE ---
+        const renderTimeline = () => {
+            const container = document.getElementById('timeline-container');
+            container.innerHTML = '';
+            
+            if(window.state.logs.length === 0){
+                container.innerHTML = '<div class="text-center text-slate-400 pt-10"><i class="fa-solid fa-box-open text-4xl mb-3 block"></i>السجل فارغ، ابدأ بتسجيل بياناتك</div>';
+                return;
+            }
+
+            // Group logs by exact timestamp
+            const groupedLogs = {};
+            window.state.logs.forEach(log => {
+                const ts = log.timestamp;
+                if(!groupedLogs[ts]) groupedLogs[ts] = { ids: [], bg: null, meal: null, insulin: null, insulin_long: null, date: new Date(ts), tsStr: ts };
+                groupedLogs[ts].ids.push(log.id);
+                groupedLogs[ts][log.type] = log;
+            });
+
+            // Sort descending
+            const sortedGroups = Object.values(groupedLogs).sort((a,b) => b.date - a.date).slice(0, 30);
+
+            sortedGroups.forEach(group => {
+                const div = document.createElement('div');
+                div.className = "relative flex items-start gap-4 group animate-[slideDown_0.3s_ease-out]";
+                
+                const timeObj = group.date;
+                const hours = timeObj.getHours() % 12 || 12;
+                const ampm = timeObj.getHours() >= 12 ? 'م' : 'ص';
+                const timeStr = `${String(hours).padStart(2,'0')}:${String(timeObj.getMinutes()).padStart(2,'0')}`;
+                const dateShort = timeObj.toLocaleDateString('ar-SA', {month:'short', day:'numeric'});
+
+                let bgHtml = '', mealHtml = '', insHtml = '', insLongHtml = '', mealDetails = '';
+                
+                if(group.bg) {
+                    let color = group.bg.value < window.state.settings.targetMin ? 'text-red-500' : (group.bg.value > window.state.settings.targetMax ? 'text-orange-500' : 'text-primary');
+                    let ctxBadge = group.bg.context && group.bg.context !== 'عشوائي' ? `<span class="bg-blue-100 text-blue-600 px-2 py-0.5 rounded text-[8px] ml-1 font-black">${group.bg.context}</span>` : '';
+                    bgHtml = `<div class="flex items-center gap-1.5 bg-blue-50/50 px-2 py-1 rounded-lg ${color} border border-blue-100/50"><i class="fa-solid fa-droplet text-xs"></i> <span class="font-black text-lg">${group.bg.value}</span><span class="text-[8px] opacity-60">mg/dL</span>${ctxBadge}</div>`;
+                }
+                if(group.meal) {
+                    mealHtml = `<div class="flex items-center gap-1.5 bg-amber-50/50 px-2 py-1 rounded-lg text-warning border border-amber-100/50"><i class="fa-solid fa-utensils text-xs"></i> <span class="font-black text-lg">${group.meal.value}</span><span class="text-[8px] opacity-60">g</span></div>`;
+                    if(group.meal.items && group.meal.items.length > 0) {
+                        mealDetails = `<div class="w-full mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-1.5 items-center">
+                            ${group.meal.items.map(i => `<span class="bg-amber-50 border border-amber-100 text-amber-800 px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1">${i.name.replace('✨','')} <span class="bg-white px-1.5 rounded text-amber-600 font-black text-[9px]">${i.carbs}g</span></span>`).join('')}
+                        </div>`;
+                    }
+                }
+                if(group.insulin) {
+                    insHtml = `<div class="flex items-center gap-1.5 bg-emerald-50/50 px-2 py-1 rounded-lg text-secondary border border-emerald-100/50"><i class="fa-solid fa-syringe text-xs"></i> <span class="font-black text-lg">${group.insulin.value}</span><span class="text-[8px] opacity-60">سريع</span></div>`;
+                }
+                if(group.insulin_long) {
+                    insLongHtml = `<div class="flex items-center gap-1.5 bg-purple-50/50 px-2 py-1 rounded-lg text-purple-600 border border-purple-100/50"><i class="fa-solid fa-syringe text-xs"></i> <span class="font-black text-lg">${group.insulin_long.value}</span><span class="text-[8px] opacity-60">طويل</span></div>`;
+                }
+
+                // حساب التنبؤ المبرمج الذكي في السجل الزمني
+                let predictionHtml = '';
+                if(group.bg) {
+                    const groupTime = group.date.getTime();
+                    
+                    let historicalIOB = 0;
+                    let historicalCOB = 0;
+                    
+                    window.state.logs.forEach(l => {
+                        const lTime = new Date(l.timestamp).getTime();
+                        if (lTime < groupTime) { // strictly older
+                            if (l.type === 'insulin') {
+                                const limit = (window.state.settings.duration || 4) * 3600000;
+                                if ((groupTime - lTime) < limit) {
+                                    const ratio = 1 - ((groupTime - lTime) / limit);
+                                    historicalIOB += (l.value * Math.max(0, ratio));
+                                }
+                            }
+                            if (l.type === 'meal') {
+                                const limit = 3 * 3600000;
+                                if ((groupTime - lTime) < limit) {
+                                    const ratio = 1 - ((groupTime - lTime) / limit);
+                                    historicalCOB += (l.value * Math.max(0, ratio));
+                                }
+                            }
+                        }
+                    });
+
+                    const bgVal = group.bg.value;
+                    const carbVal = group.meal ? group.meal.value : 0;
+                    const insVal = group.insulin ? group.insulin.value : 0;
+                    const isf = window.state.settings.isf || 50;
+                    const icr = window.state.settings.icr || 10;
+                    
+                    const totalActiveCarbs = carbVal + historicalCOB;
+                    const totalActiveInsulin = insVal + historicalIOB;
+
+                    const maxRise = (totalActiveCarbs / (icr || 1)) * (isf || 50);
+                    const maxDrop = totalActiveInsulin * (isf || 50);
+                    
+                    let momentum = 0;
+                    if(group.bg.trend === 'up') momentum = 15;
+                    if(group.bg.trend === 'up-fast') momentum = 30;
+                    if(group.bg.trend === 'down') momentum = -15;
+                    if(group.bg.trend === 'down-fast') momentum = -30;
+
+                    const s1 = Math.max(40, Math.round(bgVal + (maxRise * 0.50) - (maxDrop * 0.30) + momentum));
+                    const s2 = Math.max(40, Math.round(bgVal + (maxRise * 0.85) - (maxDrop * 0.70) + (momentum*0.5)));
+                    const s3 = Math.max(40, Math.round(bgVal + (maxRise * 1.00) - (maxDrop * 0.95)));
+
+                    predictionHtml = `
+                        <div class="w-full mt-3 pt-3 border-t border-slate-100 flex justify-end">
+                            <div class="flex gap-4 text-[10px] font-black bg-slate-50/80 px-4 py-2 rounded-xl border border-slate-200 shadow-sm items-center">
+                                <span class="text-slate-500 opacity-80"><i class="fa-solid fa-chart-line text-blue-500"></i> التنبؤ (مع التراكم):</span>
+                                <span class="flex items-center gap-1"><span class="opacity-50 text-[8px]">+1س</span><span class="${s1<window.state.settings.targetMin?'text-red-500':(s1>window.state.settings.targetMax?'text-orange-500':'text-emerald-500')} text-sm">${s1}</span></span>
+                                <div class="w-px h-4 bg-slate-300"></div>
+                                <span class="flex items-center gap-1"><span class="opacity-50 text-[8px]">+2س</span><span class="${s2<window.state.settings.targetMin?'text-red-500':(s2>window.state.settings.targetMax?'text-orange-500':'text-emerald-500')} text-sm">${s2}</span></span>
+                                <div class="w-px h-4 bg-slate-300"></div>
+                                <span class="flex items-center gap-1"><span class="opacity-50 text-[8px]">+3س</span><span class="${s3<window.state.settings.targetMin?'text-red-500':(s3>window.state.settings.targetMax?'text-orange-500':'text-emerald-500')} text-sm">${s3}</span></span>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                div.innerHTML = `
+                    <div class="flex flex-col items-center z-10">
+                        <div class="w-12 h-12 bg-slate-800 text-white rounded-[1rem] flex flex-col items-center justify-center shadow-lg relative">
+                            <span class="text-xs font-black leading-none">${timeStr}</span>
+                            <span class="text-[8px] opacity-70 mt-0.5">${ampm}</span>
+                        </div>
+                    </div>
+                    <div class="flex-1 bg-white p-4 rounded-[1.5rem] shadow-premium border border-slate-100 relative overflow-hidden transition-all hover:shadow-lg mb-6">
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="text-[9px] font-black text-slate-400 uppercase bg-slate-50 px-2 py-0.5 rounded-full">${dateShort}</div>
+                            <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onclick="window.openLogger(1, true, '${group.tsStr}')" class="w-6 h-6 rounded-full bg-blue-50 text-blue-500 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                                <button onclick="window.deleteGroupEntry('${group.ids.join(',')}')" class="w-6 h-6 rounded-full bg-red-50 text-red-500 hover:bg-red-600 hover:text-white flex items-center justify-center transition-all"><i class="fa-solid fa-trash-can text-[10px]"></i></button>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2 items-center w-full">
+                            ${bgHtml}${mealHtml}${insHtml}${insLongHtml}
+                        </div>
+                        ${mealDetails}
+                        ${predictionHtml}
+                    </div>`;
+            container.appendChild(div);
+            });
+        };
+
+        window.deleteGroupEntry = async (idsStr) => {
+            if(!auth.currentUser) return;
+            if(confirm("هل أنت متأكد من حذف هذا السجل نهائياً؟")) {
+                const ids = idsStr.split(',');
+                const batch = writeBatch(db);
+                ids.forEach(id => {
+                    batch.delete(doc(db, 'artifacts', appIdGlobal, 'users', auth.currentUser.uid, 'logs', id));
+                });
+                
+                try {
+                    await batch.commit();
+                    window.showToast("تم الحذف بنجاح", "info");
+                } catch(e) {
+                    window.showToast("تعذر الحذف السحابي", "error");
+                }
+            }
+        };
+
+        // --- SETTINGS ---
+        window.updateSettings = async () => {
+            if(!auth.currentUser) return;
+            const data = {
+                name: document.getElementById('set-name').value || 'بطل سكر',
+                isf: parseFloat(document.getElementById('set-isf').value) || 50,
+                icr: parseFloat(document.getElementById('set-icr').value) || 10,
+                dob: document.getElementById('set-dob').value || '',
+                weight: document.getElementById('set-weight').value || '',
+                targetMin: parseFloat(document.getElementById('set-target-min').value) || 90,
+                targetMax: parseFloat(document.getElementById('set-target-max').value) || 180,
+                duration: parseFloat(document.getElementById('set-duration').value) || 4,
+            };
+            
+            window.state.settings = data;
+            
+            try {
+                await setDoc(doc(db, 'artifacts', appIdGlobal, 'users', auth.currentUser.uid, 'settings', 'profile'), data);
+                window.showToast("تم مزامنة الإعدادات السحابية", "success");
+            } catch(e) {
+                window.showToast("فشل تحديث الإعدادات بالسحابة", "error");
+            }
+            window.refreshAppUI();
+        };
+
+        function updateSettingsUI() {
+            const s = window.state.settings;
+            document.getElementById('set-name').value = s.name || '';
+            document.getElementById('set-isf').value = s.isf || 50;
+            document.getElementById('set-icr').value = s.icr || 10;
+            document.getElementById('set-dob').value = s.dob || '';
+            document.getElementById('set-weight').value = s.weight || '';
+            document.getElementById('set-target-min').value = s.targetMin || 90;
+            document.getElementById('set-target-max').value = s.targetMax || 180;
+            document.getElementById('set-duration').value = s.duration || 4;
+            
+            // update labels
+            if(document.getElementById('ui-target-lbl')) document.getElementById('ui-target-lbl').innerText = `${s.targetMin}-${s.targetMax}`;
+            if(document.getElementById('print-target-range-lbl')) document.getElementById('print-target-range-lbl').innerText = `${s.targetMin}-${s.targetMax}`;
+        }
+
+        // --- REPORTS, RECOMMENDATIONS & LAB RESULTS ---
+
+        const generateProgrammedRecommendations = (filteredBGs) => {
+            const s = window.state.settings;
+            const recs = [];
+            
+            if (filteredBGs.length < 5) return [{ type: 'slate', icon: 'fa-box-open', text: 'نحتاج لتسجيل المزيد من القراءات المفلترة (5 على الأقل) لتقديم توصيات دقيقة للوجبات والفترات.' }];
+
+            // 1. Overall Trend Analysis
+            const lows = filteredBGs.filter(b => b.value < s.targetMin).length;
+            const highs = filteredBGs.filter(b => b.value > s.targetMax).length;
+            const lowPercent = lows / filteredBGs.length;
+            const highPercent = highs / filteredBGs.length;
+
+            if (lowPercent > 0.15) {
+                recs.push({ type: 'red', icon: 'fa-triangle-exclamation', text: `تنبيه عام: نسبة الهبوط لديك (${Math.round(lowPercent*100)}%) مرتفعة في هذه الفترة. ناقش طبيبك في تقليل الجرعات الأساسية (طويل المفعول).` });
+            } else if (highPercent > 0.40) {
+                recs.push({ type: 'orange', icon: 'fa-arrow-up-right-dots', text: `تنبيه عام: السكر يميل للارتفاع أغلب الوقت. قد تحتاج لزيادة الجرعات الأساسية أو مراجعة الحصص الغذائية.` });
+            }
+
+            // 2. Period Analysis (Morning, Afternoon, Evening, Night)
+            const periods = {
+                'الصباح (الفطور)': { logs: [], target: 0, high: 0, low: 0, avg: 0 },
+                'الظهر (الغداء)': { logs: [], target: 0, high: 0, low: 0, avg: 0 },
+                'المساء (العشاء)': { logs: [], target: 0, high: 0, low: 0, avg: 0 },
+                'الليل (وقت النوم)': { logs: [], target: 0, high: 0, low: 0, avg: 0 }
+            };
+
+            filteredBGs.forEach(b => {
+                const hour = new Date(b.timestamp).getHours();
+                const ctx = b.context || '';
+                let pName = '';
+
+                if (ctx.includes('فطور') || ctx.includes('استيقاظ') || (hour >= 5 && hour < 12)) {
+                    pName = 'الصباح (الفطور)';
+                } else if (ctx.includes('غداء') || (hour >= 12 && hour < 17)) {
+                    pName = 'الظهر (الغداء)';
+                } else if (ctx.includes('عشاء') || (hour >= 17 && hour < 23)) {
+                    pName = 'المساء (العشاء)';
+                } else {
+                    pName = 'الليل (وقت النوم)';
+                }
+                
+                periods[pName].logs.push(b);
+                if (b.value < s.targetMin) periods[pName].low++;
+                else if (b.value > s.targetMax) periods[pName].high++;
+                else periods[pName].target++;
+            });
+
+            // Add period recommendations
+            Object.keys(periods).forEach(key => {
+                const p = periods[key];
+                if (p.logs.length >= 3) {
+                    const avg = Math.round(p.logs.reduce((sum, l) => sum + l.value, 0) / p.logs.length);
+                    const total = p.logs.length;
+                    const lowPercent = p.low / total;
+                    const highPercent = p.high / total;
+
+                    if (lowPercent > 0.20) {
+                        recs.push({ type: 'red', icon: 'fa-circle-down', text: `فترة ${key}: 🔴 سيئة وتميل للهبوط (متوسط ${avg} mg/dL). تتطلب مراقبة دقيقة ومراجعة الجرعة لتجنب الهبوط الخطر.` });
+                    } else if (highPercent > 0.40) {
+                        recs.push({ type: 'orange', icon: 'fa-circle-up', text: `فترة ${key}: 🟠 تميل للارتفاع (متوسط ${avg} mg/dL). يحتاج المريض لضبط جرعة هذه الفترة أو مراجعة كمية الكربوهيدرات.` });
+                    } else if (p.target / total >= 0.60) {
+                        recs.push({ type: 'emerald', icon: 'fa-star', text: `فترة ${key}: 🟢 ممتازة ومستقرة! (متوسط ${avg} mg/dL). استمروا على نفس الروتين.` });
+                    } else {
+                        recs.push({ type: 'blue', icon: 'fa-minus', text: `فترة ${key}: 🔵 متذبذبة (متوسط ${avg} mg/dL). راقبوا الطفل لتحديد السبب.` });
+                    }
+                }
+            });
+
+            if (recs.length === 0) {
+                recs.push({ type: 'emerald', icon: 'fa-thumbs-up', text: 'أداء ممتاز أو لا توجد بيانات كافية لاستخراج أنماط سيئة، استمروا في تسجيل القراءات!' });
+            }
+
+            return recs;
+        };
+
+        const getFilteredDateLogs = () => {
+            let start = document.getElementById('filter-start').value;
+            let end = document.getElementById('filter-end').value;
+            
+            let filtered = window.state.logs;
+            
+            if(start) {
+                const sDate = new Date(start);
+                sDate.setHours(0,0,0,0);
+                filtered = filtered.filter(l => new Date(l.timestamp) >= sDate);
+            }
+            if(end) {
+                const eDate = new Date(end);
+                eDate.setHours(23,59,59,999);
+                filtered = filtered.filter(l => new Date(l.timestamp) <= eDate);
+            }
+            
+            return filtered;
+        };
+
+        const targetBackgroundPlugin = {
+            id: 'targetBackgroundPlugin',
+            beforeDraw: (chart) => {
+                const { ctx, chartArea, scales: { y } } = chart;
+                if (!chartArea) return;
+                const topPixel = y.getPixelForValue(window.state.settings.targetMax);
+                const bottomPixel = y.getPixelForValue(window.state.settings.targetMin);
+
+                // Clamp coordinates to chartArea
+                const top = Math.max(topPixel, chartArea.top);
+                const bottom = Math.min(bottomPixel, chartArea.bottom);
+
+                if (bottom <= top) return;
+
+                ctx.save();
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.15)'; // emerald-500 with 15% opacity
+                ctx.fillRect(chartArea.left, top, chartArea.right - chartArea.left, bottom - top);
+                ctx.restore();
+            }
+        };
+
+        window.renderReports = () => {
+            const ctx = document.getElementById('main-bg-chart').getContext('2d');
+            const s = window.state.settings;
+            const filteredLogs = getFilteredDateLogs();
+            const bgs = filteredLogs.filter(l => l.type === 'bg').reverse();
+            
+            if(window.myChart) window.myChart.destroy();
+            
+            if(bgs.length === 0) {
+                ['rep-avg', 'rep-target', 'rep-low', 'rep-high', 'rep-a1c', 'rep-latest-lab', 'rep-progress'].forEach(id => {
+                    if(document.getElementById(id)) document.getElementById(id).innerHTML = '--';
+                });
+                document.getElementById('ai-recommendations-list').innerHTML = '<div class="text-[10px] text-slate-400 text-center py-2">لا توجد قراءات في هذه الفترة المحددة</div>';
+                return;
+            }
+
+            const avg = Math.round(bgs.reduce((sum,l)=>sum+l.value, 0) / bgs.length);
+            document.getElementById('rep-avg').innerText = avg;
+            
+            // Core Metrics counts
+            const lows = bgs.filter(l => l.value < s.targetMin).length;
+            const inTargetCount = bgs.filter(l => l.value >= s.targetMin && l.value <= s.targetMax).length;
+            const highs = bgs.filter(l => l.value > s.targetMax).length;
+            
+            document.getElementById('rep-low').innerText = lows;
+            document.getElementById('rep-target').innerText = inTargetCount;
+            document.getElementById('rep-high').innerText = highs;
+
+            // Standard Formula A1c
+            let estA1c = (avg + 46.7) / 28.7;
+            
+            // Lab Learning Adjustments (Weighted)
+            const noteEl = document.getElementById('rep-a1c-note');
+            let latestLabVal = '--';
+            
+            if(window.state.labResults.length > 0) {
+                latestLabVal = window.state.labResults[0].value;
+                document.getElementById('rep-latest-lab').innerText = latestLabVal + '%';
+
+                const diff = latestLabVal - estA1c;
+                estA1c = estA1c + (diff * 0.5); // adjustment
+                noteEl.innerText = "تم المعايرة مع نتائج المختبر";
+                noteEl.className = "text-[8px] text-indigo-500 mt-1 font-black";
+
+                // Progress Calculation
+                const progressDiff = (estA1c - latestLabVal).toFixed(1);
+                if (progressDiff > 0) {
+                    document.getElementById('rep-progress').innerHTML = `<span class="text-red-500">+${progressDiff}% 🔴 أسوأ</span>`;
+                } else if (progressDiff < 0) {
+                    document.getElementById('rep-progress').innerHTML = `<span class="text-emerald-500">${progressDiff}% 🟢 أفضل</span>`;
+                } else {
+                    document.getElementById('rep-progress').innerHTML = `<span class="text-slate-500">مستقر ⚪</span>`;
+                }
+            } else {
+                document.getElementById('rep-latest-lab').innerText = '--';
+                document.getElementById('rep-progress').innerText = '--';
+                noteEl.innerText = "مبني على متوسط القراءات المفلترة رياضياً";
+                noteEl.className = "text-[8px] text-purple-400 mt-1";
+            }
+
+            document.getElementById('rep-a1c').innerText = estA1c.toFixed(1) + '%';
+
+            // Draw Chart - make chronological order for the chart (left to right = oldest to newest)
+            const chartBgs = [...bgs]; // Already reversed from oldest to newest
+            const displayBgs = chartBgs.length > 60 ? chartBgs.slice(-60) : chartBgs;
+            
+            window.myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: displayBgs.map(l => new Date(l.timestamp).toLocaleDateString('ar-SA', {month:'short', day:'numeric'})),
+                    datasets: [{
+                        data: displayBgs.map(l => l.value),
+                        borderColor: '#1e40af',
+                        backgroundColor: 'rgba(30, 64, 175, 0.1)',
+                        fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#fff'
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { legend: { display: false } }, 
+                    scales: { 
+                        y: { 
+                            position: 'right',
+                            suggestedMin: Math.max(0, s.targetMin - 40),
+                            suggestedMax: s.targetMax + 40
+                        } 
+                    } 
+                },
+                plugins: [targetBackgroundPlugin]
+            });
+
+            // Render Recommendations based on Filtered data
+            const recsContainer = document.getElementById('ai-recommendations-list');
+            const recs = generateProgrammedRecommendations(bgs);
+            recsContainer.innerHTML = '';
+            
+            recs.forEach(rec => {
+                const div = document.createElement('div');
+                div.className = `flex items-start gap-3 bg-${rec.type}-50 p-3 rounded-xl border border-${rec.type}-100 text-${rec.type}-700 animate-[slideDown_0.2s_ease-out]`;
+                div.innerHTML = `
+                    <i class="fa-solid ${rec.icon} mt-0.5 text-lg opacity-80"></i>
+                    <div class="text-xs font-bold leading-relaxed flex-1">${rec.text}</div>
+                `;
+                recsContainer.appendChild(div);
+            });
+        };
+
+        window.addLabResult = async () => {
+            if(!auth.currentUser) return;
+            const val = parseFloat(document.getElementById('lab-val').value);
+            const date = document.getElementById('lab-date').value;
+            if(!val || !date) return window.showToast("الرجاء إدخال النتيجة والتاريخ", "warning");
+
+            const data = { value: val, date: date, timestamp: new Date().toISOString() };
+            
+            try {
+                const col = collection(db, 'artifacts', appIdGlobal, 'users', auth.currentUser.uid, 'hba1c');
+                await addDoc(col, data);
+                window.showToast("تم إضافة النتيجة بنجاح وسيتم تحسين الدقة بناءً عليها", "success");
+            } catch(e) {
+                 window.showToast("حدث خطأ في الحفظ السحابي", "error");
+            }
+            
+            document.getElementById('lab-val').value = '';
+            document.getElementById('lab-date').value = '';
+        };
+
+        const renderLabResults = () => {
+            const container = document.getElementById('lab-results-list');
+            if(!container) return;
+            container.innerHTML = '';
+            if(window.state.labResults.length === 0) {
+                container.innerHTML = '<div class="text-[10px] text-slate-400 text-center">لا توجد نتائج مسجلة</div>';
+                return;
+            }
+            window.state.labResults.forEach(lab => {
+                const div = document.createElement('div');
+                div.className = "flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100 shadow-sm animate-[slideDown_0.2s_ease-out]";
+                div.innerHTML = `
+                    <span class="font-bold text-xs text-slate-600">${new Date(lab.date).toLocaleDateString('ar-SA')}</span>
+                    <div class="flex items-center gap-3">
+                        <span class="font-black text-indigo-600 text-lg">${lab.value}%</span>
+                        <button onclick="window.deleteLab('${lab.id}')" class="text-red-300 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                    </div>`;
+                container.appendChild(div);
+            });
+        };
+
+        window.deleteLab = async (id) => {
+            if(!auth.currentUser) return;
+            if(confirm("حذف النتيجة المخبرية؟")) {
+                try {
+                    await deleteDoc(doc(db, 'artifacts', appIdGlobal, 'users', auth.currentUser.uid, 'hba1c', id));
+                } catch(e) {
+                    window.showToast("تعذر الحذف", "error");
+                }
+            }
+        };
+
+        // --- EXPORT CSV (EXCEL) ---
+        window.exportExcel = () => {
+            const filteredLogs = getFilteredDateLogs();
+            if(filteredLogs.length === 0) return window.showToast("لا توجد بيانات للتصدير", "warning");
+
+            // Group by timestamp
+            const groupedLogs = {};
+            filteredLogs.forEach(log => {
+                const ts = log.timestamp;
+                if(!groupedLogs[ts]) groupedLogs[ts] = { bg: null, meal: null, insulin: null, insulin_long: null, date: new Date(ts) };
+                groupedLogs[ts][log.type] = log;
+            });
+            const sortedGroups = Object.values(groupedLogs).sort((a,b) => b.date - a.date);
+
+            // BOM for Arabic UTF-8 Excel support
+            let csvContent = "\uFEFFالتاريخ,الوقت,حالة القراءة,السكر (mg/dL),الكربوهيدرات (g),أنسولين سريع (u),أنسولين طويل (u)\n";
+
+            sortedGroups.forEach(group => {
+                const dDate = group.date.toLocaleDateString('ar-SA');
+                const dTime = group.date.toLocaleTimeString('ar-SA', {hour:'2-digit', minute:'2-digit'});
+                const context = group.bg && group.bg.context ? group.bg.context : '';
+                const bg = group.bg ? group.bg.value : '';
+                const carb = group.meal ? group.meal.value : '';
+                const insF = group.insulin ? group.insulin.value : '';
+                const insL = group.insulin_long ? group.insulin_long.value : '';
+
+                csvContent += `${dDate},${dTime},${context},${bg},${carb},${insF},${insL}\n`;
+            });
+
+            // Append summary to bottom of Excel
+            csvContent += `\n\nملخص التقرير للفترة المحددة\n`;
+            csvContent += `متوسط السكر,${document.getElementById('rep-avg').innerText}\n`;
+            csvContent += `هبوط (<${window.state.settings.targetMin}),${document.getElementById('rep-low').innerText}\n`;
+            csvContent += `ضمن الطبيعي (${window.state.settings.targetMin}-${window.state.settings.targetMax}),${document.getElementById('rep-target').innerText}\n`;
+            csvContent += `مرتفع (>${window.state.settings.targetMax}),${document.getElementById('rep-high').innerText}\n`;
+            csvContent += `التراكمي المتوقع للفترة,${document.getElementById('rep-a1c').innerText}\n`;
+            csvContent += `آخر تراكمي سريري,${document.getElementById('rep-latest-lab').innerText}\n`;
+            csvContent += `نسبة التقدم,${document.getElementById('rep-progress').innerText.replace(/[🔴🟢⚪]/g, '')}\n`;
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Sukkar_Export_${window.state.settings.name}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.showToast("تم تصدير ملف الإكسل (CSV) بنجاح", "success");
+        };
+
+        // --- PDF EXPORT ---
+        window.exportReport = async () => {
+            const filteredLogs = getFilteredDateLogs();
+            if(filteredLogs.length === 0) return window.showToast("لا توجد بيانات لطباعتها في هذه الفترة", "warning");
+
+            const loader = document.getElementById('export-loader');
+            loader.style.display = 'flex';
+            
+            // Set Print Date and Filter Range
+            document.getElementById('print-date').innerText = `تاريخ الاستخراج: ${new Date().toLocaleDateString('ar-SA')}`;
+            let start = document.getElementById('filter-start').value;
+            let end = document.getElementById('filter-end').value;
+            let rangeText = "للفترة: كافة السجلات";
+            if(start || end) {
+                rangeText = `للفترة: من ${start ? new Date(start).toLocaleDateString('ar-SA') : 'البداية'} إلى ${end ? new Date(end).toLocaleDateString('ar-SA') : 'اليوم'}`;
+            }
+            document.getElementById('print-filter-range').innerText = rangeText;
+
+            // Header Stats
+            document.getElementById('print-name').innerText = window.state.settings.name || '--';
+            document.getElementById('print-dob').innerText = window.state.settings.dob || '--';
+            document.getElementById('print-isf').innerText = window.state.settings.isf || '--';
+            document.getElementById('print-icr').innerText = window.state.settings.icr || '--';
+            
+            // Core Metrics mapped from UI
+            document.getElementById('print-avg').innerText = document.getElementById('rep-avg').innerText;
+            document.getElementById('print-target').innerText = document.getElementById('rep-target').innerText;
+            document.getElementById('print-lows').innerText = document.getElementById('rep-low').innerText;
+            document.getElementById('print-highs').innerText = document.getElementById('rep-high').innerText;
+            document.getElementById('print-a1c').innerText = document.getElementById('rep-a1c').innerText;
+            document.getElementById('print-latest-lab').innerText = document.getElementById('rep-latest-lab').innerText;
+            
+            const progText = document.getElementById('rep-progress').innerText;
+            document.getElementById('print-progress').innerText = progText;
+
+            // Capture Chart as Image to display in PDF
+            const chartCanvas = document.getElementById('main-bg-chart');
+            const chartImg = document.getElementById('pdf-chart-img');
+            chartImg.src = chartCanvas.toDataURL('image/png', 1.0);
+
+            // Inject Mathematical Recommendations into PDF
+            const pdfRecsContainer = document.getElementById('pdf-recommendations');
+            const bgs = filteredLogs.filter(l => l.type === 'bg');
+            const recs = generateProgrammedRecommendations(bgs);
+            
+            pdfRecsContainer.innerHTML = '<h4 style="margin: 0 0 10px 0; color: #1e293b; font-size: 14pt; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">التوصيات السريرية وتحليل الفترات</h4>';
+            recs.forEach(rec => {
+                let bgColor = '#f8fafc', textColor = '#334155', borderColor = '#e2e8f0';
+                if(rec.type === 'red') { bgColor = '#fef2f2'; textColor = '#be123c'; borderColor = '#fecdd3'; }
+                else if(rec.type === 'orange') { bgColor = '#fff7ed'; textColor = '#c2410c'; borderColor = '#ffedd5'; }
+                else if(rec.type === 'emerald') { bgColor = '#f0fdf4'; textColor = '#15803d'; borderColor = '#bbf7d0'; }
+                else if(rec.type === 'blue') { bgColor = '#eff6ff'; textColor = '#1d4ed8'; borderColor = '#bfdbfe'; }
+                else if(rec.type === 'purple') { bgColor = '#faf5ff'; textColor = '#7e22ce'; borderColor = '#e9d5ff'; }
+
+                pdfRecsContainer.innerHTML += `
+                    <div style="background-color: ${bgColor}; color: ${textColor}; border: 1px solid ${borderColor}; padding: 10px; border-radius: 8px; margin-bottom: 8px; font-size: 11pt; font-weight: bold; text-align: right;">
+                        ${rec.text}
+                    </div>
+                `;
+            });
+
+            // --- Robust Multi-Orientation PDF Generation Logic ---
+            try {
+                // Ensure rendering wrapper is active but hidden
+                document.body.classList.add('is-printing');
+                
+                // Allow DOM to update
+                await new Promise(r => setTimeout(r, 100));
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4'); // First page Portrait
+                
+                // 1. Capture & Add Summary Page (Portrait)
+                const summaryEl = document.getElementById('pdf-summary-page');
+                const summaryCanvas = await html2canvas(summaryEl, { scale: 2, useCORS: true });
+                const summaryImg = summaryCanvas.toDataURL('image/jpeg', 0.95);
+                
+                // Scale summary page to fit A4 perfectly without cutoff
+                const pdfWidth = 210;
+                const pageHeight = 297;
+                let imgHeight = (summaryCanvas.height * pdfWidth) / summaryCanvas.width;
+
+                if (imgHeight > pageHeight) {
+                    const scale = pageHeight / imgHeight;
+                    pdf.addImage(summaryImg, 'JPEG', (210 - (pdfWidth * scale)) / 2, 0, pdfWidth * scale, imgHeight * scale);
+                } else {
+                    pdf.addImage(summaryImg, 'JPEG', 0, 0, pdfWidth, imgHeight);
+                }
+
+                // 2. Prepare Table Data (Grouped by Day)
+                const logsByDate = {};
+                filteredLogs.forEach(log => {
+                    const dateObj = new Date(log.timestamp);
+                    const dateKey = dateObj.toLocaleDateString('en-CA'); 
+                    const displayDate = dateObj.toLocaleDateString('ar-SA');
+                    const dayName = dateObj.toLocaleDateString('ar-SA', { weekday: 'long' });
+
+                    if (!logsByDate[dateKey]) {
+                        logsByDate[dateKey] = { displayDate, dayName, exactDate: dateObj, events: {} };
+                    }
+                    
+                    const ts = log.timestamp;
+                    if(!logsByDate[dateKey].events[ts]) {
+                        logsByDate[dateKey].events[ts] = { bg: null, meal: null, insulin: null, insulin_long: null, date: new Date(ts) };
+                    }
+                    logsByDate[dateKey].events[ts][log.type] = log;
+                });
+
+                const sortedDateKeys = Object.keys(logsByDate).sort((a, b) => new Date(b) - new Date(a));
+                
+                // 3. Chunk Table Rows and Render Landscape Pages
+                const ROWS_PER_PAGE = 8; // Optimal rows to fit on an A4 Landscape page perfectly
+                const tableBodyEl = document.getElementById('pdf-table-body');
+                const tablePageEl = document.getElementById('pdf-table-page');
+
+                for (let i = 0; i < sortedDateKeys.length; i += ROWS_PER_PAGE) {
+                    const chunkKeys = sortedDateKeys.slice(i, i + ROWS_PER_PAGE);
+                    
+                    // Build HTML for chunk
+                    tableBodyEl.innerHTML = chunkKeys.map(dateKey => {
+                        const dayData = logsByDate[dateKey];
+                        const sortedEvents = Object.values(dayData.events).sort((a,b) => a.date - b.date); // ASC for reading left-to-right
+                        
+                        let eventsHtml = '<div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start; align-items: stretch;">';
+                        
+                        sortedEvents.forEach(evt => {
+                            const timeStr = evt.date.toLocaleTimeString('ar-SA', {hour:'2-digit', minute:'2-digit'});
+                            let ctx = evt.bg && evt.bg.context ? evt.bg.context : '';
+                            
+                            let items = [];
+                            if(evt.bg) {
+                                let color = evt.bg.value < window.state.settings.targetMin ? '#e11d48' : (evt.bg.value > window.state.settings.targetMax ? '#ea580c' : '#1e40af');
+                                items.push(`<span style="color:${color}; font-weight:900; margin-left: 6px;">🩸 ${evt.bg.value}</span>`);
+                            }
+                            if(evt.meal) items.push(`<span style="color:#ea580c; margin-left: 6px;">🍽️ ${evt.meal.value}g</span>`);
+                            if(evt.insulin) items.push(`<span style="color:#059669; margin-left: 6px;">💉 ${evt.insulin.value}u</span>`);
+                            if(evt.insulin_long) items.push(`<span style="color:#9333ea; margin-left: 6px;">⏳ ${evt.insulin_long.value}u</span>`);
+
+                            // COMPACT LOG FORMAT
+                            eventsHtml += `
+                                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px; font-size: 8pt; text-align: right; min-width: 90px; display: inline-block;">
+                                    <div style="color: #64748b; margin-bottom: 2px; font-size: 7pt; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px;">
+                                        <b>${timeStr}</b> ${ctx ? `- ${ctx}` : ''}
+                                    </div>
+                                    <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                                        ${items.join('')}
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        
+                        eventsHtml += '</div>';
+
+                        return `
+                            <tr>
+                                <td style="font-weight: bold; color: #1e40af;">${dayData.dayName}</td>
+                                <td style="color: #475569; font-weight: bold;">${dayData.displayDate}</td>
+                                <td style="text-align: right;">${eventsHtml}</td>
+                            </tr>
+                        `;
+                    }).join('');
+
+                    // Capture this chunk as Landscape
+                    const tableCanvas = await html2canvas(tablePageEl, { scale: 2, useCORS: true });
+                    const tableImg = tableCanvas.toDataURL('image/jpeg', 0.95);
+                    
+                    pdf.addPage('a4', 'l'); // 'l' for Landscape
+                    // In Landscape, width is 297, height is 210
+                    pdf.addImage(tableImg, 'JPEG', 0, 0, 297, (tableCanvas.height * 297) / tableCanvas.width);
+                }
+
+                pdf.save(`Medical_Report_${window.state.settings.name}.pdf`);
+                window.showToast("تم تصدير التقرير بنجاح", "success");
+
+            } catch (err) {
+                console.error(err);
+                window.showToast("حدث خطأ أثناء إنشاء التقرير", "error");
+            } finally {
+                loader.style.display = 'none';
+                document.body.classList.remove('is-printing');
+            }
+        };
+
+        window.showToast = (msg, type) => {
+            const container = document.getElementById('toast-container');
+            const t = document.createElement('div');
+            t.className = `toast ${type==='success'?'bg-emerald-600':(type==='error'?'bg-red-600':(type==='warning'?'bg-amber-500':'bg-blue-600'))}`;
+            t.innerHTML = `<span>${msg}</span>`;
+            container.appendChild(t);
+            setTimeout(() => {
+                t.style.opacity = '0';
+                setTimeout(() => t.remove(), 400);
+            }, 3000);
+        };
+
+    </script>
+</body>
+</html>
